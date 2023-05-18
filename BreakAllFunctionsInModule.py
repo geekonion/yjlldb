@@ -144,7 +144,7 @@ def generate_option_parser():
                       dest="verbose",
                       help="verbose output")
 
-    parser.add_option("-i", "--standalone",
+    parser.add_option("-s", "--standalone",
                       action="store_true",
                       default=False,
                       dest="standalone",
