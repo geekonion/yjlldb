@@ -1,10 +1,14 @@
 一些用于调试iOS应用的lldb命令
 
+Some very useful lldb commands for iOS debugging.
+
+
+
 #### baf - break all functions in module
 
-给一个库中的所有函数/方法下断点
+break all functions and methods in the specified module
 
-如，给UIKit库下断点
+for example，break UIKit
 
 ```stylus
 (lldb) baf UIKit
@@ -14,7 +18,7 @@
 
 #### bdc - breakpoint disable current
 
-disable当前命中的断点，并自动继续执行程序
+disable current breakpoint an continue
 
 ```stylus
 (lldb) thread info
@@ -49,5 +53,51 @@ frame #1: 0x1837685ec libobjc.A.dylib`objc_exception_throw + 56
 frame #2: 0x18450a448 CoreFoundation`-[__NSArray0 objectEnumerator] + 0
 frame #3: 0x104360f78 Interlock`-[ViewController touchesBegan:withEvent:] + at ViewController.m:51:5
 ...
+```
+
+
+
+#### ls 
+
+list directory contents, just like `ls -lh` on Mac
+
+```stylus
+(lldb) ls bu
+/var/containers/Bundle/Application/D0419A6E-053C-4E35-B422-7C0FD6CAB060/Interlock.app
+drwxr-xr-x        128B 1970-01-01 00:00:00 +0000 Base.lproj
+drwxr-xr-x         96B 1970-01-01 00:00:00 +0000 _CodeSignature
+drwxr-xr-x         64B 1970-01-01 00:00:00 +0000 META-INF
+-rw-r--r--        1.5K 2023-05-16 03:17:32 +0000 Info.plist
+-rwxr-xr-x      103.0K 2023-05-19 11:07:02 +0000 Interlock
+-rw-r--r--          8B 2023-05-16 03:17:32 +0000 PkgInfo
+-rw-r--r--      194.7K 2023-05-16 03:17:31 +0000 embedded.mobileprovision
+(lldb) ls home
+/var/mobile/Containers/Data/Application/09E63130-623F-4124-BCBB-59E20BD28964
+drwxr-xr-x         96B 2023-05-19 07:28:01 +0000 Documents
+drwxr-xr-x        128B 2023-05-16 04:51:14 +0000 Library
+drwxr-xr-x         64B 1970-01-01 00:00:00 +0000 SystemData
+drwxr-xr-x         64B 2023-05-16 04:51:14 +0000 tmp
+(lldb) ls /var/mobile/Containers/Data/Application/09E63130-623F-4124-BCBB-59E20BD28964/Documents
+/var/mobile/Containers/Data/Application/09E63130-623F-4124-BCBB-59E20BD28964/Documents
+-rw-r--r--         18B 2023-05-16 05:36:05 +0000 report.txt
+```
+
+
+
+#### commads to get common directory
+
+```stylus
+(lldb) bundle_dir
+/var/containers/Bundle/Application/63954B0E-79FA-42F2-A7EA-3568026008A1/Interlock.app
+(lldb) home_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28
+(lldb) doc_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Documents
+(lldb) caches_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library/Caches
+(lldb) lib_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library
+(lldb) tmp_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/tmp
 ```
 
