@@ -23,6 +23,7 @@ def disable_current_breakpoint(debugger, command, result, internal_dict):
     for thread in process:
         if thread.GetStopReason() == lldb.eStopReasonBreakpoint:
             n_reason = thread.GetStopReasonDataCount()
+            # reason data应该成对出现，分别代表breakpoint_id和location_id
             if n_reason % 2 != 0:
                 print("unexpected breakpoint data")
                 continue
