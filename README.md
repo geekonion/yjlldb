@@ -101,3 +101,31 @@ drwxr-xr-x         64B 2023-05-16 04:51:14 +0000 tmp
 /var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/tmp
 ```
 
+
+
+#### find_el
+
+detects endless loop in all threads at this point
+
+```objective-c
+- (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    int a = 1;
+    NSLog(@"%s", __PRETTY_FUNCTION__);
+    while (a) {
+        a++;
+    }
+}
+```
+
+```stylus
+# touch device screen
+2023-05-20 12:29:52.604910+0800 Interlock[56660:1841567] -[ViewController touchesBegan:withEvent:]
+# pause program execution, then execute find_el in lldb
+(lldb) find_el
+Breakpoint 1: where = Interlock`-[ViewController touchesBegan:withEvent:] + 136 at ViewController.mm:34:5, address = 0x109dd8d48
+Breakpoint 2: where = Interlock`main + 110 at main.m:17:5, address = 0x109dd911e
+delete breakpoint 2
+call Interlock`-[ViewController touchesBegan:withEvent:] + 136 at ViewController.m:34:5, 22 times per second, hit_count: 100
+...
+```
+
