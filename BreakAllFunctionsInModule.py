@@ -94,7 +94,7 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
                 print(sym_start_addr.GetLineEntry())
 
             module_found = True
-            if options.standalone:
+            if options.individual:
                 brkpoint = target.BreakpointCreateBySBAddress(sym_start_addr)
                 # 判断下断点是否成功
                 if not brkpoint.IsValid() or brkpoint.num_locations == 0:
@@ -107,7 +107,7 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
             else:
                 func_names.add(sym_name)
 
-        if not options.standalone:
+        if not options.individual:
             # BreakpointCreateByNames(SBTarget self, char const ** symbol_name, uint32_t num_symbol,
             # uint32_t name_type_mask, SBFileSpecList module_list, SBFileSpecList comp_unit_list) -> SBBreakpoint...
             n_func_names = len(func_names)
@@ -126,7 +126,7 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
                                          .format(brkpoint.GetID(), brkpoint.GetNumLocations()))
 
     if module_found:
-        if options.standalone:
+        if options.individual:
             result.AppendMessage("set {} breakpoints".format(total_count))
     else:
         result.AppendMessage("module {} not found".format(lookup_module_name))
@@ -144,10 +144,10 @@ def generate_option_parser():
                       dest="verbose",
                       help="verbose output")
 
-    parser.add_option("-s", "--standalone",
+    parser.add_option("-i", "--individual",
                       action="store_true",
                       default=False,
-                      dest="standalone",
-                      help="create breakpoints in standalone breakpoint mode")
+                      dest="individual",
+                      help="create breakpoints with individual mode")
 
     return parser
