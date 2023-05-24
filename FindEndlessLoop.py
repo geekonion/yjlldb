@@ -1,8 +1,6 @@
 # -*- coding: UTF-8 -*-
 
 import lldb
-import optparse
-import shlex
 import os
 import time
 
@@ -111,11 +109,3 @@ def breakpoint_handler(frame, bp_loc, dict):
         # 间接实现每breakpoint_ignore_count次命中一次的效果
         # https://stackoverflow.com/questions/40615222/how-can-i-setup-an-lldb-breakpoint-firing-every-10th-time
         bp_loc.SetIgnoreCount(breakpoint_ignore_count)
-
-
-def generate_option_parser():
-    usage = "usage: %prog"
-
-    parser = optparse.OptionParser(usage=usage, prog='find_el')
-
-    return parser

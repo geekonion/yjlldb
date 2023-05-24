@@ -1,8 +1,6 @@
 # -*- coding: UTF-8 -*-
 
 import lldb
-import optparse
-import shlex
 import os
 
 
