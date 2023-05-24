@@ -54,8 +54,8 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
         if lookup_module_name not in name:
             continue
 
-        print("-----break symbols in %s-----" % name)
-        func_names = []
+        print("-----break functions in %s-----" % name)
+        func_names = set()
         module_list = lldb.SBFileSpecList()
         module_list.Append(module_file_spec)
         comp_unit_list = lldb.SBFileSpecList()
@@ -105,15 +105,15 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
                     result.AppendMessage("Breakpoint {}: where = {}`{}, address = 0x{:x}"
                                          .format(brkpoint.GetID(), name, sym_name, addr))
             else:
-                func_names.append(sym_name)
+                func_names.add(sym_name)
 
         if not options.standalone:
             # BreakpointCreateByNames(SBTarget self, char const ** symbol_name, uint32_t num_symbol,
             # uint32_t name_type_mask, SBFileSpecList module_list, SBFileSpecList comp_unit_list) -> SBBreakpoint...
             n_func_names = len(func_names)
-            print(f"will set breakpoint for {n_func_names} functions")
+            print(f"will set breakpoint for {n_func_names} names")
             if n_func_names > 0:
-                brkpoint = target.BreakpointCreateByNames(func_names,
+                brkpoint = target.BreakpointCreateByNames(list(func_names),
                                                           n_func_names,
                                                           lldb.eFunctionNameTypeFull,
                                                           module_list,

@@ -12,6 +12,9 @@ for example，break UIKit
 
 ```stylus
 (lldb) baf UIKit
+-----break functions in UIKit-----
+will set breakpoint for 76987 names
+Breakpoint 3: 75016 locations
 ```
 
 
