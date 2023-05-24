@@ -132,3 +132,19 @@ call Interlock`-[ViewController touchesBegan:withEvent:] + 136 at ViewController
 ...
 ```
 
+
+
+#### thread_eb
+
+get extended backtrace of thread
+
+```stylus
+(lldb) thread_eb
+thread #4294967295: tid = 0x190c, 0x0000000104e907cc libdispatch.dylib`_dispatch_root_queue_push_override + 160, queue = 'com.apple.main-thread'
+    frame #0: 0x0000000104e907cc libdispatch.dylib`_dispatch_root_queue_push_override + 160
+    frame #1: 0x0000000104ded884 Concurrency`-[ViewController touchesBegan:withEvent:](self=<unavailable>, _cmd=<unavailable>, touches=<unavailable>, event=<unavailable>) at ViewController.m:25:5
+    frame #2: 0x000000018bb1583c UIKit`forwardTouchMethod + 340
+    frame #3: 0x000000018b9bb760 UIKit`-[UIResponder touchesBegan:withEvent:] + 60
+...
+```
+
