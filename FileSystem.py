@@ -67,6 +67,14 @@ def execute_ls(debugger, command, result, internal_dict):
             dir_path = command
             show_dir = False
 
+        if 'nil' == dir_path:
+            result.AppendMessage(f'{arg} dir not found')
+            return
+
+        if 'error: ' in dir_path:
+            result.AppendMessage(dir_path)
+            return
+
         file_list = ls_dir(debugger, dir_path)
         if 'object returned empty description' in file_list:
             file_list = 'total 0'
@@ -326,7 +334,7 @@ def get_group_path(debugger):
         free(groupID_c);
         group_path = [(NSURL *)[[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:groupID] path];
     }
-    group_path;
+    group_path
     '''
     ret_str = exe_script(debugger, command_script)
 
@@ -343,9 +351,13 @@ def exe_script(debugger, command_script):
 
     response = res.GetOutput()
 
+    response = response.strip()
     # 末尾有两个\n
     if response.endswith('\n\n'):
         response = response[:-2]
+    # 末尾有两个\n
+    if response.endswith('\n'):
+        response = response[:-1]
 
     return response
 
