@@ -9,17 +9,17 @@ from enum import Enum
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
                            ' -f FileSystem.execute_ls ls')
-    debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
+    debugger.HandleCommand('command script add -h "print Home directory path."'
                            ' -f FileSystem.show_home_directory home_dir')
-    debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
+    debugger.HandleCommand('command script add -h "print bundle path."'
                            ' -f FileSystem.show_bundle_directory bundle_dir')
-    debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
+    debugger.HandleCommand('command script add -h "print Documents path."'
                            ' -f FileSystem.show_doc_directory doc_dir')
-    debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
+    debugger.HandleCommand('command script add -h "print Library path."'
                            ' -f FileSystem.show_library_directory lib_dir')
-    debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
+    debugger.HandleCommand('command script add -h "print tmp path."'
                            ' -f FileSystem.show_tmp_directory tmp_dir')
-    debugger.HandleCommand('command script add -h "list directory contents, just like ls -lh on mac."'
+    debugger.HandleCommand('command script add -h "print Caches path."'
                            ' -f FileSystem.show_caches_directory caches_dir')
 
 
@@ -169,10 +169,10 @@ def get_bundle_directory(debugger):
     command_script = '@import Foundation;'
     # const char *path = (const char *)[[(NSBundle *)[NSBundle mainBundle] bundlePath] UTF8String];
     command_script += r'''
-       NSString *path = (NSString *)[(NSBundle *)[NSBundle mainBundle] bundlePath];
+    NSString *path = (NSString *)[(NSBundle *)[NSBundle mainBundle] bundlePath];
 
-       path
-       '''
+    path
+    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
@@ -181,10 +181,10 @@ def get_bundle_directory(debugger):
 def get_home_directory(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
-       NSString *path = (NSString *)NSHomeDirectory();
+    NSString *path = (NSString *)NSHomeDirectory();
 
-       path
-       '''
+    path
+    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
@@ -193,10 +193,10 @@ def get_home_directory(debugger):
 def get_doc_directory(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
-       NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+    NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
 
-       path
-       '''
+    path
+    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
@@ -205,10 +205,10 @@ def get_doc_directory(debugger):
 def get_library_directory(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
-       NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Library"];
+    NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Library"];
 
-       path
-       '''
+    path
+    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
@@ -217,10 +217,10 @@ def get_library_directory(debugger):
 def get_tmp_directory(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
-       NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"tmp"];
+    NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"tmp"];
 
-       path
-       '''
+    path
+    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
@@ -229,10 +229,10 @@ def get_tmp_directory(debugger):
 def get_caches_directory(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
-       NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"];
+    NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"];
 
-       path
-       '''
+    path
+    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
