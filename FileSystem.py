@@ -68,6 +68,8 @@ def execute_ls(debugger, command, result, internal_dict):
             show_dir = False
 
         file_list = ls_dir(debugger, dir_path)
+        if 'object returned empty description' in file_list:
+            file_list = 'total 0'
         if show_dir:
             result.AppendMessage("{}\n{}".format(dir_path, file_list))
         else:
