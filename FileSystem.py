@@ -21,6 +21,8 @@ def __lldb_init_module(debugger, internal_dict):
                            ' -f FileSystem.show_tmp_directory tmp_dir')
     debugger.HandleCommand('command script add -h "print Caches path."'
                            ' -f FileSystem.show_caches_directory caches_dir')
+    debugger.HandleCommand('command script add -h "print group path."'
+                           ' -f FileSystem.show_group_path group_dir')
 
 
 def execute_ls(debugger, command, result, internal_dict):
@@ -165,6 +167,11 @@ def show_caches_directory(debugger, command, result, internal_dict):
     result.AppendMessage(ret_str)
 
 
+def show_group_path(debugger, command, result, internal_dict):
+    ret_str = get_group_path(debugger)
+    result.AppendMessage(ret_str)
+
+
 def get_bundle_directory(debugger):
     command_script = '@import Foundation;'
     # const char *path = (const char *)[[(NSBundle *)[NSBundle mainBundle] bundlePath] UTF8String];
@@ -232,6 +239,85 @@ def get_caches_directory(debugger):
     NSString *path = (NSString *)[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"];
 
     path
+    '''
+    ret_str = exe_script(debugger, command_script)
+
+    return ret_str
+
+
+def get_group_path(debugger):
+    command_script = '@import Foundation;'
+    command_script += r'''
+    char *groupID_c = NULL;
+    const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(0);
+    
+    uint32_t magic = mach_header->magic;
+    if (magic == 0xfeedfacf) { //MH_MAGIC_64
+        uint32_t ncmds = mach_header->ncmds;
+        if (ncmds > 50) {
+        } else if (ncmds > 0) {
+            uintptr_t cur = (uintptr_t)mach_header + sizeof(mach_header_t);
+            segment_command_t *sc = NULL;
+            for (uint i = 0; i < ncmds; i++, cur += sc->cmdsize) {
+                sc = (segment_command_t *)cur;
+                if (sc->cmd == 0x1d) { //LC_CODE_SIGNATURE
+                    struct linkedit_data_command *cmd = (struct linkedit_data_command *)sc;
+                    void *sign = (char *)mach_header + cmd->dataoff;
+                    
+                    struct CS_SuperBlob *superBlob = (struct CS_SuperBlob *)sign;
+                    uint32_t magic = _OSSwapInt32(superBlob->magic);
+                    uint32_t nblob = _OSSwapInt32(superBlob->count);
+                    
+                    struct CS_BlobIndex *index = superBlob->index;
+                    for ( int i = 0; i < nblob; ++i ) {
+                        struct CS_BlobIndex blobIndex = index[i];
+                        uint32_t offset = _OSSwapInt32(blobIndex.offset);
+                        
+                        uint32_t *blobAddr = (__uint32_t *)((char *)sign + offset);
+                        
+                        struct CS_Blob *blob = (struct CS_Blob *)blobAddr;
+                        magic = _OSSwapInt32(blob->magic);
+                        if ( magic == 0xfade7171 ) { //kSecCodeMagicEntitlement
+                            struct CS_Blob *ent = (struct CS_Blob *)blobAddr;
+                            
+                            uint32_t length = _OSSwapInt32(ent->length);
+                            if (length <= 0) {
+                                break;
+                            }
+                            char *group_key = strstr((char *)blobAddr + 8, "com.apple.security.application-groups");
+                            if (!group_key) {
+                                break;
+                            }
+                            char *group_start = strstr(group_key, "<string>");
+                            if (!group_start) {
+                                break;
+                            }
+                            group_start += strlen("<string>");
+                            char *group_end = strstr(group_start, "</string>");
+                            if (!group_end) {
+                                break;
+                            }
+                            
+                            long len = group_end - group_start;
+                            groupID_c = (char *)calloc(len + 1, sizeof(char));
+                            if (groupID_c) {
+                                memcpy(groupID_c, group_start, len);
+                            }
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    NSString *group_path = nil;
+    if (groupID_c) {
+        NSString *groupID = [NSString stringWithUTF8String:groupID_c];
+        free(groupID_c);
+        group_path = [(NSURL *)[[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:groupID] path];
+    }
+    group_path;
     '''
     ret_str = exe_script(debugger, command_script)
 

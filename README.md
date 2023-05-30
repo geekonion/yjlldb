@@ -102,6 +102,8 @@ drwxr-xr-x         64B 2023-05-16 04:51:14 +0000 tmp
 /var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library
 (lldb) tmp_dir
 /var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/tmp
+(lldb) group_dir
+/private/var/mobile/Containers/Shared/AppGroup/9460EA21-AE6A-4220-9BB3-6EC8B971CDAE
 ```
 
 
