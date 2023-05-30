@@ -46,6 +46,7 @@ def execute_ls(debugger, command, result, internal_dict):
         return
 
     if len(args) == 1:
+        show_dir = True
         arg = args[0].lower()
         if arg in "bundle":
             dir_path = get_bundle_directory(debugger)
@@ -59,12 +60,18 @@ def execute_ls(debugger, command, result, internal_dict):
             dir_path = get_tmp_directory(debugger)
         elif arg in "caches":
             dir_path = get_caches_directory(debugger)
+        elif arg in "group":
+            dir_path = get_group_path(debugger)
         else:
             # arg是经过小写处理的，不能直接使用
             dir_path = command
+            show_dir = False
 
         file_list = ls_dir(debugger, dir_path)
-        result.AppendMessage("{}\n{}".format(dir_path, file_list))
+        if show_dir:
+            result.AppendMessage("{}\n{}".format(dir_path, file_list))
+        else:
+            result.AppendMessage(file_list)
     elif len(args) == 0:
         dir_path = get_home_directory(debugger)
         file_list = ls_dir(debugger, dir_path)
@@ -349,7 +356,8 @@ def generate_option_parser():
             "\tdoc - Documents directory\n" + \
             "\tlib - Library directory\n" + \
             "\ttmp - tmp directory\n" + \
-            "\tcaches - Caches directory"
+            "\tcaches - Caches directory\n" + \
+            "\tgroup - group directory"
 
     parser = optparse.OptionParser(usage=usage, prog='ls')
 
