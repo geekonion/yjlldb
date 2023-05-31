@@ -268,21 +268,40 @@ def get_group_path(debugger):
     char *groupID_c = NULL;
     const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(0);
     
-    uint32_t magic = mach_header->magic;
-    if (magic == 0xfeedfacf) { //MH_MAGIC_64
+    uint32_t header_magic = mach_header->magic;
+    if (header_magic == 0xfeedfacf) { //MH_MAGIC_64
         uint32_t ncmds = mach_header->ncmds;
-        if (ncmds > 50) {
-        } else if (ncmds > 0) {
-            uintptr_t cur = (uintptr_t)mach_header + sizeof(mach_header_t);
-            segment_command_t *sc = NULL;
-            for (uint i = 0; i < ncmds; i++, cur += sc->cmdsize) {
-                sc = (segment_command_t *)cur;
-                if (sc->cmd == 0x1d) { //LC_CODE_SIGNATURE
-                    struct linkedit_data_command *cmd = (struct linkedit_data_command *)sc;
-                    void *sign = (char *)mach_header + cmd->dataoff;
-                    
-                    struct CS_SuperBlob *superBlob = (struct CS_SuperBlob *)sign;
-                    uint32_t magic = _OSSwapInt32(superBlob->magic);
+        if (ncmds > 0) {
+            struct load_command *lc = (struct load_command *)((char *)mach_header + sizeof(mach_header_t));
+            struct linkedit_data_command *lc_signature = NULL;
+            intptr_t slide       = (intptr_t)_dyld_get_image_vmaddr_slide(0);
+            uint64_t file_offset = 0;
+            uint64_t vmaddr      = 0;
+            BOOL sig_found = NO;
+            for (uint32_t i = 0; i < ncmds; i++) {
+                if (lc->cmd == 0x19) { // LC_SEGMENT_64
+                    struct segment_command_64 *seg = (struct segment_command_64 *)lc;
+                    if (strcmp(seg->segname, "__LINKEDIT") == 0) { //SEG_LINKEDIT
+                        file_offset = seg->fileoff;
+                        vmaddr      = seg->vmaddr;
+                    }
+                } else if (lc->cmd == 0x1d) { //LC_CODE_SIGNATURE
+                    lc_signature = (struct linkedit_data_command *)lc;
+                }
+                lc = (struct load_command *)((char *)lc + lc->cmdsize);
+            }
+            if (lc_signature) {
+                sig_found = YES;
+                char *sign_ptr = (char *)vmaddr + lc_signature->dataoff - file_offset + slide;
+#if __arm64e__
+                void *sign = (void *)ptrauth_strip(codeSignature, ptrauth_key_function_pointer);
+#else
+                void *sign = (void *)sign_ptr;
+#endif
+                
+                struct CS_SuperBlob *superBlob = (struct CS_SuperBlob *)sign;
+                uint32_t super_blob_magic = _OSSwapInt32(superBlob->magic);
+                if (super_blob_magic == 0xfade0cc0) { //CSMAGIC_EMBEDDED_SIGNATURE
                     uint32_t nblob = _OSSwapInt32(superBlob->count);
                     
                     struct CS_BlobIndex *index = superBlob->index;
@@ -293,24 +312,31 @@ def get_group_path(debugger):
                         uint32_t *blobAddr = (__uint32_t *)((char *)sign + offset);
                         
                         struct CS_Blob *blob = (struct CS_Blob *)blobAddr;
-                        magic = _OSSwapInt32(blob->magic);
+                        uint32_t magic = _OSSwapInt32(blob->magic);
                         if ( magic == 0xfade7171 ) { //kSecCodeMagicEntitlement
-                            struct CS_Blob *ent = (struct CS_Blob *)blobAddr;
                             uint32_t header_len = 8;
-                            uint32_t length = _OSSwapInt32(ent->length) - header_len;
+                            uint32_t length = _OSSwapInt32(blob->length) - header_len;
                             if (length <= 0) {
                                 break;
                             }
-                            char *group_key = strstr((char *)blobAddr + header_len, "com.apple.security.application-groups");
+                            const char *mem_start = (char *)blobAddr + header_len;
+                            const char *keyword = "com.apple.security.application-groups";
+                            char *group_key = (char *)memmem(mem_start, length, keyword, strlen(keyword));
                             if (!group_key) {
                                 break;
                             }
-                            char *group_start = strstr(group_key, "<string>");
+                            
+                            const char *prefix = "<string>";
+                            size_t prefix_len = strlen(prefix);
+                            length -= (uint32_t)(group_key - mem_start);
+                            char *group_start = (char *)memmem(group_key, length, prefix, prefix_len);
                             if (!group_start) {
                                 break;
                             }
-                            group_start += strlen("<string>");
-                            char *group_end = strstr(group_start, "</string>");
+                            group_start += prefix_len;
+                            length -= prefix_len;
+                            const char *suffix = "</string>";
+                            char *group_end = (char *)memmem(group_start, length, suffix, strlen(suffix));
                             if (!group_end) {
                                 break;
                             }
@@ -323,18 +349,18 @@ def get_group_path(debugger):
                             break;
                         }
                     }
-                    break;
                 }
             }
         }
     }
+    
     NSString *group_path = nil;
     if (groupID_c) {
         NSString *groupID = [NSString stringWithUTF8String:groupID_c];
         free(groupID_c);
         group_path = [(NSURL *)[[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:groupID] path];
     }
-    group_path
+    group_path;
     '''
     ret_str = exe_script(debugger, command_script)
 

@@ -105,10 +105,12 @@ def get_entitlements(debugger, keyword):
     char *ent_str = NULL;
     const mach_header_t *headers[256] = {0};
     NSMutableArray *names = [NSMutableArray array];
+    intptr_t slides[256] = {0};
     int count = 0;
     if (!keyword || [@"NULL" isEqualToString:keyword]) {
         const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(0);
         headers[count] = mach_header;
+        slides[count] = (intptr_t)_dyld_get_image_vmaddr_slide(0);
         count++;
         [names addObject:[[NSString stringWithUTF8String:(const char *)_dyld_get_image_name(0)] lastPathComponent]];
     } else {
@@ -123,6 +125,7 @@ def get_entitlements(debugger, keyword):
             if (range.location != NSNotFound) {
                 const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
                 headers[count] = mach_header;
+                slides[count] = (intptr_t)_dyld_get_image_vmaddr_slide(i);
                 count++;
                 [names addObject:module_name];
             }
@@ -133,87 +136,106 @@ def get_entitlements(debugger, keyword):
     for (int idx = 0; idx < count; idx++) {
         const mach_header_t *mach_header = headers[idx];
         uint32_t header_magic = mach_header->magic;
-        if (header_magic == 0xfeedfacf) { //MH_MAGIC_64
-            uint32_t ncmds = mach_header->ncmds;
-            BOOL sig_found = NO;
-            if (ncmds > 0) {
-                uintptr_t cur = (uintptr_t)mach_header + sizeof(mach_header_t);
-                struct load_command *sc = NULL;
-                for (uint i = 0; i < ncmds; i++, cur += sc->cmdsize) {
-                    sc = (struct load_command *)cur;
-                    if (sc->cmd == 0x1d) { //LC_CODE_SIGNATURE
-                        sig_found = YES;
-                        struct linkedit_data_command *cmd = (struct linkedit_data_command *)sc;
-                        void *sign = (char *)mach_header + cmd->dataoff;
-                        
-                        struct CS_SuperBlob *superBlob = (struct CS_SuperBlob *)sign;
-                        uint32_t super_blob_magic = _OSSwapInt32(superBlob->magic);
-                        // 签名段数据被破坏
-                        if (super_blob_magic != 0xfade0cc0) { // CSMAGIC_EMBEDDED_SIGNATURE
-                            [result appendFormat:@"invalid signature magic found at %@!0x%x, address: %p\n", names[idx], cmd->dataoff, sign];
-                            uint32_t sign_size = cmd->datasize;
-                            const char *prefix = "<?xml";
-                            char *ent_ptr = (char *)memmem(sign, sign_size, prefix, strlen(prefix));
-                            if (!ent_ptr) {
-                                break;
-                            }
-                            const char *suffix = "</plist>";
-                            size_t data_len = ent_ptr - (char *)sign;
-                            char *ent_end = (char *)memmem(ent_ptr, data_len, suffix, strlen(suffix));
-                            if (!ent_end) {
-                                break;
-                            }
-                            size_t length = ent_end - ent_ptr + strlen(suffix);
-                            if (length) {
-                                ent_str = (char *)calloc(length + 1, sizeof(char));
-                                if (ent_str) {
-                                    memcpy(ent_str, ent_ptr, length);
-                                    [result appendFormat:@"entitlements of %@:\n%s", names[idx], ent_str];
-                                    free(ent_str);
-                                }
-                            }
-                            break;
-                        }
-                        uint32_t nblob = _OSSwapInt32(superBlob->count);
-                        
-                        BOOL ent_found = NO;
-                        struct CS_BlobIndex *index = superBlob->index;
-                        for ( int i = 0; i < nblob; ++i ) {
-                            struct CS_BlobIndex blobIndex = index[i];
-                            uint32_t offset = _OSSwapInt32(blobIndex.offset);
-                            
-                            uint32_t *blobAddr = (__uint32_t *)((char *)sign + offset);
-                            
-                            struct CS_Blob *blob = (struct CS_Blob *)blobAddr;
-                            uint32_t magic = _OSSwapInt32(blob->magic);
-                            if ( magic == 0xfade7171 ) { //kSecCodeMagicEntitlement
-                                
-                                uint32_t header_len = 8;
-                                uint32_t length = _OSSwapInt32(blob->length) - header_len;
-                                if (length <= 0) {
-                                    break;
-                                }
-                                char *ent_ptr = (char *)blobAddr + header_len;
-                                ent_str = (char *)calloc(length + 1, sizeof(char));
-                                if (ent_str) {
-                                    memcpy(ent_str, ent_ptr, length);
-                                    [result appendFormat:@"entitlements of %@:\n%s", names[idx], ent_str];
-                                    free(ent_str);
-                                    ent_found = YES;
-                                }
-                                break;
-                            }
-                        }
-                        if (!ent_found) {
-                            [result appendFormat:@"%@ apparently does not contain any entitlements\n", names[idx]];
-                        }
-                        break;
+        if (header_magic != 0xfeedfacf) { //MH_MAGIC_64
+            continue;
+        }
+        
+        uint32_t ncmds = mach_header->ncmds;
+        if (ncmds == 0) {
+            continue;
+        }
+        
+        struct load_command *lc = (struct load_command *)((char *)mach_header + sizeof(mach_header_t));
+        struct linkedit_data_command *lc_signature = NULL;
+        intptr_t slide       = slides[idx];
+        uint64_t file_offset = 0;
+        uint64_t vmaddr      = 0;
+        BOOL sig_found = NO;
+        for (uint32_t i = 0; i < ncmds; i++) {
+            if (lc->cmd == 0x19) { // LC_SEGMENT_64
+                struct segment_command_64 *seg = (struct segment_command_64 *)lc;
+                if (strcmp(seg->segname, "__LINKEDIT") == 0) { //SEG_LINKEDIT
+                    file_offset = seg->fileoff;
+                    vmaddr      = seg->vmaddr;
+                }
+            } else if (lc->cmd == 0x1d) { //LC_CODE_SIGNATURE
+                lc_signature = (struct linkedit_data_command *)lc;
+            }
+            lc = (struct load_command *)((char *)lc + lc->cmdsize);
+        }
+        if (lc_signature) {
+            sig_found = YES;
+            char *sign_ptr = (char *)vmaddr + lc_signature->dataoff - file_offset + slide;
+#if __arm64e__
+            void *sign = (void *)ptrauth_strip(codeSignature, ptrauth_key_function_pointer);
+#else
+            void *sign = (void *)sign_ptr;
+#endif
+            struct CS_SuperBlob *superBlob = (struct CS_SuperBlob *)sign;
+            uint32_t super_blob_magic = _OSSwapInt32(superBlob->magic);
+            // 签名段数据被破坏
+            if (super_blob_magic != 0xfade0cc0) { // CSMAGIC_EMBEDDED_SIGNATURE
+                [result appendFormat:@"invalid signature magic found at %@!0x%x, address: %p\n", names[idx], lc_signature->dataoff, sign];
+                uint32_t sign_size = lc_signature->datasize;
+                const char *prefix = "<?xml";
+                char *ent_ptr = (char *)memmem(sign, sign_size, prefix, strlen(prefix));
+                if (!ent_ptr) {
+                    break;
+                }
+                const char *suffix = "</plist>";
+                size_t data_len = ent_ptr - (char *)sign;
+                char *ent_end = (char *)memmem(ent_ptr, data_len, suffix, strlen(suffix));
+                if (!ent_end) {
+                    break;
+                }
+                size_t length = ent_end - ent_ptr + strlen(suffix);
+                if (length) {
+                    ent_str = (char *)calloc(length + 1, sizeof(char));
+                    if (ent_str) {
+                        memcpy(ent_str, ent_ptr, length);
+                        [result appendFormat:@"entitlements of %@:\n%s", names[idx], ent_str];
+                        free(ent_str);
                     }
                 }
+                break;
             }
-            if (!sig_found) {
-                [result appendFormat:@"%@ apparently does not contain code signature\n", names[idx]];
+            uint32_t nblob = _OSSwapInt32(superBlob->count);
+            
+            BOOL ent_found = NO;
+            struct CS_BlobIndex *index = superBlob->index;
+            for ( int i = 0; i < nblob; ++i ) {
+                struct CS_BlobIndex blobIndex = index[i];
+                uint32_t offset = _OSSwapInt32(blobIndex.offset);
+                
+                uint32_t *blobAddr = (__uint32_t *)((char *)sign + offset);
+                
+                struct CS_Blob *blob = (struct CS_Blob *)blobAddr;
+                uint32_t magic = _OSSwapInt32(blob->magic);
+                if ( magic == 0xfade7171 ) { //kSecCodeMagicEntitlement
+                    
+                    uint32_t header_len = 8;
+                    uint32_t length = _OSSwapInt32(blob->length) - header_len;
+                    if (length <= 0) {
+                        break;
+                    }
+                    char *ent_ptr = (char *)blobAddr + header_len;
+                    ent_str = (char *)calloc(length + 1, sizeof(char));
+                    if (ent_str) {
+                        memcpy(ent_str, ent_ptr, length);
+                        [result appendFormat:@"entitlements of %@:\n%s", names[idx], ent_str];
+                        free(ent_str);
+                        ent_found = YES;
+                    }
+                    break;
+                }
             }
+            if (!ent_found) {
+                [result appendFormat:@"%@ apparently does not contain any entitlements\n", names[idx]];
+            }
+        }
+        
+        if (!sig_found) {
+            [result appendFormat:@"%@ apparently does not contain code signature\n", names[idx]];
         }
     }
     
