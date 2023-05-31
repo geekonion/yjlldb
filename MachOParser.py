@@ -121,7 +121,8 @@ def get_entitlements(debugger, keyword):
                 continue;
             }
             NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
-            if ([module_name containsString:keyword]) {
+            NSRange range = [module_name rangeOfString:keyword options:NSCaseInsensitiveSearch];
+            if (range.location != NSNotFound) {
                 const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
                 headers[count] = mach_header;
                 count++;
