@@ -296,12 +296,12 @@ def get_group_path(debugger):
                         magic = _OSSwapInt32(blob->magic);
                         if ( magic == 0xfade7171 ) { //kSecCodeMagicEntitlement
                             struct CS_Blob *ent = (struct CS_Blob *)blobAddr;
-                            
-                            uint32_t length = _OSSwapInt32(ent->length);
+                            uint32_t header_len = 8;
+                            uint32_t length = _OSSwapInt32(ent->length) - header_len;
                             if (length <= 0) {
                                 break;
                             }
-                            char *group_key = strstr((char *)blobAddr + 8, "com.apple.security.application-groups");
+                            char *group_key = strstr((char *)blobAddr + header_len, "com.apple.security.application-groups");
                             if (!group_key) {
                                 break;
                             }
