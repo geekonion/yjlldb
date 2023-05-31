@@ -150,3 +150,33 @@ thread #4294967295: tid = 0x190c, 0x0000000104e907cc libdispatch.dylib`_dispatch
 ...
 ```
 
+
+
+#### entitlements
+
+print codesign entitlements of the specified module if any
+
+```stylus
+(lldb) ent
+Interlock:
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>application-identifier</key>
+	<string>JMD2JV9294.com.bangcle.Interlock</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>JMD2JV9294</string>
+	<key>com.apple.security.application-groups</key>
+	<array/>
+	<key>get-task-allow</key>
+	<true/>
+</dict>
+</plist>
+```
+
+```stylus
+(lldb) ent UIKit
+UIKit apparently does not contain code signature
+```
+
