@@ -81,7 +81,6 @@ drwxr-xr-x        128B 2023-05-16 04:51:14 +0000 Library
 drwxr-xr-x         64B 1970-01-01 00:00:00 +0000 SystemData
 drwxr-xr-x         64B 2023-05-16 04:51:14 +0000 tmp
 (lldb) ls /var/mobile/Containers/Data/Application/09E63130-623F-4124-BCBB-59E20BD28964/Documents
-/var/mobile/Containers/Data/Application/09E63130-623F-4124-BCBB-59E20BD28964/Documents
 -rw-r--r--         18B 2023-05-16 05:36:05 +0000 report.txt
 ```
 
@@ -141,6 +140,17 @@ call Interlock`-[ViewController touchesBegan:withEvent:] + 136 at ViewController
 get extended backtrace of thread
 
 ```stylus
+(lldb) bt
+* thread #2, queue = 'com.apple.root.default-qos', stop reason = breakpoint 6.1
+  * frame #0: 0x0000000104ab58f8 Concurrency`__41-[ViewController touchesBegan:withEvent:]_block_invoke(.block_descriptor=0x0000000104ab80f8) at ViewController.m:29:13
+    frame #1: 0x0000000104df51dc libdispatch.dylib`_dispatch_call_block_and_release + 24
+    frame #2: 0x0000000104df519c libdispatch.dylib`_dispatch_client_callout + 16
+    frame #3: 0x0000000104e01200 libdispatch.dylib`_dispatch_queue_override_invoke + 968
+    frame #4: 0x0000000104e067c8 libdispatch.dylib`_dispatch_root_queue_drain + 604
+    frame #5: 0x0000000104e06500 libdispatch.dylib`_dispatch_worker_thread3 + 136
+    frame #6: 0x0000000181fc3fac libsystem_pthread.dylib`_pthread_wqthread + 1176
+    frame #7: 0x0000000181fc3b08 libsystem_pthread.dylib`start_wqthread + 4
+
 (lldb) thread_eb
 thread #4294967295: tid = 0x190c, 0x0000000104e907cc libdispatch.dylib`_dispatch_root_queue_push_override + 160, queue = 'com.apple.main-thread'
     frame #0: 0x0000000104e907cc libdispatch.dylib`_dispatch_root_queue_push_override + 160
