@@ -9,6 +9,8 @@ from enum import Enum
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand('command script add -h "print codesign entitlements of the specified module if any."'
                            ' -f MachOParser.show_entitlements entitlements')
+    debugger.HandleCommand('command script add -h "List current executable and dependent shared library images, sorted by load address."'
+                           ' -f MachOParser.image_list image_list')
 
 
 def show_entitlements(debugger, command, result, internal_dict):
@@ -39,9 +41,17 @@ def show_entitlements(debugger, command, result, internal_dict):
     result.AppendMessage(ret_str)
 
 
+def image_list(debugger, command, result, internal_dict):
+    """
+    List current executable and dependent shared library images, sorted by load address.
+    """
+    ret_str = get_sorted_images(debugger)
+    result.AppendMessage(ret_str)
+
+
 def get_entitlements(debugger, keyword):
     command_script = '@import Foundation;'
-    command_script += '''
+    command_script += r'''
     struct mach_header_64 {
         uint32_t    magic;        /* mach magic number identifier */
         int32_t        cputype;    /* cpu specifier */
@@ -295,6 +305,62 @@ def get_entitlements(debugger, keyword):
     
     result;
     '''
+    ret_str = exe_script(debugger, command_script)
+
+    return ret_str
+
+
+def get_sorted_images(debugger):
+    command_script = '@import Foundation;'
+    command_script += r'''
+    typedef struct ImageInfo {
+        const struct mach_header *loadAddress;
+        const char *filePath;
+        intptr_t slide;
+    } ImageInfo;
+    '''
+    command_script += r'''
+    NSMutableString *result = [NSMutableString string];
+    
+    uint32_t count = (uint32_t)_dyld_image_count();
+    ImageInfo *infos = (ImageInfo *)calloc(count, sizeof(ImageInfo));
+    if (!infos) {
+        return;
+    }
+    for (uint32_t idx = 0; idx < count; idx++) {
+        const struct mach_header *header = (const struct mach_header *)_dyld_get_image_header(idx);
+        const char *name = (const char *)_dyld_get_image_name(idx);
+        intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
+        infos[idx] = (ImageInfo){header, name, slide};
+    }
+    
+    // 排序
+    size_t j = 0;
+    for (size_t img_idx = 1; img_idx < count; img_idx++) {
+        ImageInfo image_info = infos[img_idx];
+        j = img_idx;
+        while (j > 0 &&
+               infos[j - 1].loadAddress > image_info.loadAddress
+               ) {
+            infos[j] = infos[j - 1];
+            j--;
+        }
+        infos[j] = image_info;
+    }
+    
+    [result appendString:@"index   load addr(slide)       path\n"];
+    [result appendString:@"--------------------------------------------------------\n"];
+    for (size_t image_idx = 0; image_idx < count; image_idx++) {
+        ImageInfo image_info = infos[image_idx];
+        
+        [result appendFormat:@"[%3zu] %p(0x%09lx) %s\n", image_idx, image_info.loadAddress, image_info.slide, image_info.filePath];
+    }
+    
+    free(infos);
+    
+    result;
+    '''
+
     ret_str = exe_script(debugger, command_script)
 
     return ret_str
