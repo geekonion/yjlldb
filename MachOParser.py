@@ -226,7 +226,7 @@ def get_entitlements(debugger, keyword):
             uint32_t super_blob_magic = _OSSwapInt32(superBlob->magic);
             // 签名段数据被破坏
             if (super_blob_magic != 0xfade0cc0) { // CSMAGIC_EMBEDDED_SIGNATURE
-                [result appendFormat:@"invalid signature magic found at %@!0x%x, address: %p\n", names[idx], lc_signature->dataoff, sign];
+                [result appendFormat:@"invalid signature magic found at %@!0x%x, signature: %p, header at: %p\n", names[idx], lc_signature->dataoff, sign, mach_header];
                 uint32_t sign_size = lc_signature->datasize;
                 const char *prefix = "<?xml";
                 char *ent_ptr = (char *)memmem(sign, sign_size, prefix, strlen(prefix));
