@@ -66,6 +66,7 @@ def get_entitlements(debugger, keyword):
         uint32_t    nsects;        /* number of sections in segment */
         uint32_t    flags;        /* flags */
     };
+    #define __LP64__ 1
     #ifdef __LP64__
     typedef struct mach_header_64 mach_header_t;
     #else
@@ -102,6 +103,11 @@ def get_entitlements(debugger, keyword):
     '''
     command_script += 'NSString *keyword = @"' + keyword + '";\n'
     command_script += r'''
+    uint64_t address = 0;
+    BOOL isAddress = [keyword hasPrefix:@"0x"];
+    if (isAddress) {
+        sscanf((const char *)[keyword UTF8String], "%llx", &address);
+    }
     char *ent_str = NULL;
     const mach_header_t *headers[256] = {0};
     NSMutableArray *names = [NSMutableArray array];
@@ -120,15 +126,55 @@ def get_entitlements(debugger, keyword):
             if (!name) {
                 continue;
             }
+            const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
+            if (isAddress) {
+                if (address != (uint64_t)mach_header) {
+                    continue;
+                }
+            }
             NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
             NSRange range = [module_name rangeOfString:keyword options:NSCaseInsensitiveSearch];
-            if (range.location != NSNotFound) {
-                const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
+            if (isAddress || range.location != NSNotFound) {
                 headers[count] = mach_header;
                 slides[count] = (intptr_t)_dyld_get_image_vmaddr_slide(i);
                 count++;
                 [names addObject:module_name];
             }
+            if (isAddress) {
+                break;
+            }
+        }
+    }
+    
+    char *lib_path = NULL;
+    if (isAddress && names.count == 0) {
+        const mach_header_t *header = (const mach_header_t *)address;
+        uint32_t magic = header->magic;
+        if (magic == 0xfeedfacf) { // MH_MAGIC_64
+            uint32_t ncmds = header->ncmds;
+            if (ncmds > 50) {
+            } else if (ncmds > 0) {
+                uintptr_t cur = (uintptr_t)header + sizeof(mach_header_t);
+                struct load_command *sc = NULL;
+                for (uint i = 0; i < ncmds; i++, cur += sc->cmdsize) {
+                    sc = (struct load_command *)cur;
+                    if (sc->cmd == 0xd) { //LC_ID_DYLIB
+                        struct dylib_command *dc = (struct dylib_command *)sc;
+                        char *path = (char *)dc + dc->dylib.name.offset;
+                        if (path) {
+                            lib_path = strdup(path);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (lib_path) {
+            NSString *module_name = [[NSString stringWithUTF8String:lib_path] lastPathComponent];
+            headers[count] = header;
+            slides[count] = 0;
+            count++;
+            [names addObject:module_name];
         }
     }
     
@@ -165,7 +211,12 @@ def get_entitlements(debugger, keyword):
         }
         if (lc_signature) {
             sig_found = YES;
-            char *sign_ptr = (char *)vmaddr + lc_signature->dataoff - file_offset + slide;
+            char *sign_ptr = NULL;
+            if (slide == 0) {
+                sign_ptr = (char *)mach_header + lc_signature->dataoff;
+            } else {
+                sign_ptr = (char *)vmaddr + lc_signature->dataoff - file_offset + slide;
+            }
 #if __arm64e__
             void *sign = (void *)ptrauth_strip(codeSignature, ptrauth_key_function_pointer);
 #else
@@ -237,6 +288,9 @@ def get_entitlements(debugger, keyword):
         if (!sig_found) {
             [result appendFormat:@"%@ apparently does not contain code signature\n", names[idx]];
         }
+    }
+    if (lib_path) {
+        free(lib_path);
     }
     
     result;
