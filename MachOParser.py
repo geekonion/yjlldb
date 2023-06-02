@@ -110,6 +110,28 @@ def get_entitlements(debugger, keyword):
         uint32_t	dataoff;	/* file offset of data in __LINKEDIT segment */
         uint32_t	datasize;	/* file size of data in __LINKEDIT segment  */
     };
+    struct load_command {
+        uint32_t cmd;		/* type of load command */
+        uint32_t cmdsize;	/* total size of command in bytes */
+    };
+    union lc_str {
+        uint32_t	offset;	/* offset to the string */
+    #ifndef __LP64__
+        char		*ptr;	/* pointer to the string */
+    #endif 
+    };
+    struct dylib {
+        union lc_str  name;			/* library's path name */
+        uint32_t timestamp;			/* library's build time stamp */
+        uint32_t current_version;		/* library's current version number */
+        uint32_t compatibility_version;	/* library's compatibility vers number*/
+    };
+    struct dylib_command {
+        uint32_t	cmd;		/* LC_ID_DYLIB, LC_LOAD_{,WEAK_}DYLIB,
+                           LC_REEXPORT_DYLIB */
+        uint32_t	cmdsize;	/* includes pathname string */
+        struct dylib	dylib;		/* the library identification */
+    };
     '''
     command_script += 'NSString *keyword = @"' + keyword + '";\n'
     command_script += r'''
