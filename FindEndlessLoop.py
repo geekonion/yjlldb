@@ -66,15 +66,17 @@ def get_desc_for_address(target, addr):
         module_path = module_file_spec.GetFilename()
         module_name = os.path.basename(module_path)
 
-    line_entry = addr.GetLineEntry()
-    file_spec = line_entry.GetFileSpec()
-    file_path = file_spec.GetFilename()
-    file_name = os.path.basename(file_path)
-
     offset = addr.GetLoadAddress(target) - symbol.GetStartAddress().GetLoadAddress(target)
 
-    return "{}`{} + {} at {}:{}:{}".format(module_name, symbol.GetName(), offset, file_name, line_entry.GetLine(),
-                                           line_entry.GetColumn())
+    line_entry = addr.GetLineEntry()
+    if line_entry:
+        file_spec = line_entry.GetFileSpec()
+        file_path = file_spec.GetFilename()
+        file_name = os.path.basename(file_path)
+        return "{}`{} + {} at {}:{}:{}".format(module_name, symbol.GetName(), offset, file_name, line_entry.GetLine(),
+                                               line_entry.GetColumn())
+
+    return "{}`{} + {}".format(module_name, symbol.GetName(), offset)
 
 
 def breakpoint_handler(frame, bp_loc, dict):
