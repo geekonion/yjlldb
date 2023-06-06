@@ -66,6 +66,8 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
                 continue
 
             sym_name = symbol.GetName()
+            if not options.individual and not sym_name:
+                continue
             # 过滤析构函数
             if "::~" in sym_name:
                 continue
@@ -124,6 +126,7 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
                 else:
                     result.AppendMessage("Breakpoint {}: {} locations"
                                          .format(brkpoint.GetID(), brkpoint.GetNumLocations()))
+        break
 
     if module_found:
         if options.individual:
