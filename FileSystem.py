@@ -128,8 +128,7 @@ def ls_dir(debugger, dir_path):
         }
         NSInteger file_size = (NSInteger)[(id)attrs[NSFileSize] integerValue];
         NSString *size_str = nil;
-        // 文件系统1KB = 1000B
-        NSInteger KB = 1000;
+        NSInteger KB = 1024;
         NSInteger MB = KB * KB;
         NSInteger GB = MB * KB;
 
