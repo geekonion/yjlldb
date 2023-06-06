@@ -120,11 +120,11 @@ def ls_dir(debugger, dir_path):
             type_str = @"-";
         }
         NSInteger permissions = (NSInteger)[(id)attrs[NSFilePosixPermissions] integerValue];
-        NSMutableString *permissions_str = [NSMutableString string];
+        NSString *permissions_str = @"";
         if (permissions == 0755) {
-            [permissions_str appendString:@"rwxr-xr-x"];
+            permissions_str = @"rwxr-xr-x";
         } else if (permissions == 0644) {
-            [permissions_str appendString:@"rw-r--r--"];
+            permissions_str = @"rw-r--r--";
         }
         NSInteger file_size = (NSInteger)[(id)attrs[NSFileSize] integerValue];
         NSString *size_str = nil;
@@ -265,7 +265,25 @@ def get_group_path(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
     char *groupID_c = NULL;
-    const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(0);
+    const mach_header_t *mach_header = NULL;
+    
+    NSString *exe_name = [[[NSBundle mainBundle] executablePath] lastPathComponent];
+    uint32_t image_count = (uint32_t)_dyld_image_count();
+    intptr_t slide       = 0;
+    for (uint32_t i = 0; i < image_count; i++) {
+        const char *name = (const char *)_dyld_get_image_name(i);
+        if (!name) {
+            continue;
+        }
+        
+        NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
+        NSRange range = [module_name rangeOfString:exe_name options:NSCaseInsensitiveSearch];
+        if (range.location != NSNotFound) {
+            mach_header = (const mach_header_t *)_dyld_get_image_header(i);
+            slide = (intptr_t)_dyld_get_image_vmaddr_slide(i);
+            break;
+        }
+    }
     
     uint32_t header_magic = mach_header->magic;
     if (header_magic == 0xfeedfacf) { //MH_MAGIC_64
@@ -273,7 +291,6 @@ def get_group_path(debugger):
         if (ncmds > 0) {
             struct load_command *lc = (struct load_command *)((char *)mach_header + sizeof(mach_header_t));
             struct linkedit_data_command *lc_signature = NULL;
-            intptr_t slide       = (intptr_t)_dyld_get_image_vmaddr_slide(0);
             uint64_t file_offset = 0;
             uint64_t vmaddr      = 0;
             BOOL sig_found = NO;

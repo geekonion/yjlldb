@@ -144,42 +144,37 @@ def get_entitlements(debugger, keyword):
     const mach_header_t *headers[256] = {0};
     NSMutableArray *names = [NSMutableArray array];
     intptr_t slides[256] = {0};
-    int count = 0;
+    int name_count = 0;
     if (!keyword || [@"NULL" isEqualToString:keyword]) {
-        const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(0);
-        headers[count] = mach_header;
-        slides[count] = (intptr_t)_dyld_get_image_vmaddr_slide(0);
-        count++;
-        [names addObject:[[NSString stringWithUTF8String:(const char *)_dyld_get_image_name(0)] lastPathComponent]];
-    } else {
-        uint32_t image_count = (uint32_t)_dyld_image_count();
-        for (uint32_t i = 0; i < image_count; i++) {
-            const char *name = (const char *)_dyld_get_image_name(i);
-            if (!name) {
+        keyword = [[[NSBundle mainBundle] executablePath] lastPathComponent];
+    }
+    uint32_t image_count = (uint32_t)_dyld_image_count();
+    for (uint32_t i = 0; i < image_count; i++) {
+        const char *name = (const char *)_dyld_get_image_name(i);
+        if (!name) {
+            continue;
+        }
+        const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
+        if (isAddress) {
+            if (address != (uint64_t)mach_header) {
                 continue;
             }
-            const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
-            if (isAddress) {
-                if (address != (uint64_t)mach_header) {
-                    continue;
-                }
-            }
-            NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
-            NSRange range = [module_name rangeOfString:keyword options:NSCaseInsensitiveSearch];
-            if (isAddress || range.location != NSNotFound) {
-                headers[count] = mach_header;
-                slides[count] = (intptr_t)_dyld_get_image_vmaddr_slide(i);
-                count++;
-                [names addObject:module_name];
-            }
-            if (isAddress) {
-                break;
-            }
+        }
+        NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
+        NSRange range = [module_name rangeOfString:keyword options:NSCaseInsensitiveSearch];
+        if (isAddress || range.location != NSNotFound) {
+            headers[name_count] = mach_header;
+            slides[name_count] = (intptr_t)_dyld_get_image_vmaddr_slide(i);
+            name_count++;
+            [names addObject:module_name];
+        }
+        if (isAddress) {
+            break;
         }
     }
     
     char *lib_path = NULL;
-    if (isAddress && names.count == 0) {
+    if (isAddress && [names count] == 0) {
         const mach_header_t *header = (const mach_header_t *)address;
         uint32_t magic = header->magic;
         if (magic == 0xfeedfacf) { // MH_MAGIC_64
@@ -203,15 +198,15 @@ def get_entitlements(debugger, keyword):
         }
         if (lib_path) {
             NSString *module_name = [[NSString stringWithUTF8String:lib_path] lastPathComponent];
-            headers[count] = header;
-            slides[count] = 0;
-            count++;
+            headers[name_count] = header;
+            slides[name_count] = 0;
+            name_count++;
             [names addObject:module_name];
         }
     }
     
     NSMutableString *result = [NSMutableString string];
-    for (int idx = 0; idx < count; idx++) {
+    for (int idx = 0; idx < name_count; idx++) {
         const mach_header_t *mach_header = headers[idx];
         uint32_t header_magic = mach_header->magic;
         if (header_magic != 0xfeedfacf) { //MH_MAGIC_64
@@ -344,12 +339,12 @@ def get_sorted_images(debugger):
     command_script += r'''
     NSMutableString *result = [NSMutableString string];
     
-    uint32_t count = (uint32_t)_dyld_image_count();
-    ImageInfo *infos = (ImageInfo *)calloc(count, sizeof(ImageInfo));
+    uint32_t img_count = (uint32_t)_dyld_image_count();
+    ImageInfo *infos = (ImageInfo *)calloc(img_count, sizeof(ImageInfo));
     if (!infos) {
         return;
     }
-    for (uint32_t idx = 0; idx < count; idx++) {
+    for (uint32_t idx = 0; idx < img_count; idx++) {
         const struct mach_header *header = (const struct mach_header *)_dyld_get_image_header(idx);
         const char *name = (const char *)_dyld_get_image_name(idx);
         intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
@@ -358,7 +353,7 @@ def get_sorted_images(debugger):
     
     // 排序
     size_t j = 0;
-    for (size_t img_idx = 1; img_idx < count; img_idx++) {
+    for (size_t img_idx = 1; img_idx < img_count; img_idx++) {
         ImageInfo image_info = infos[img_idx];
         j = img_idx;
         while (j > 0 &&
@@ -372,7 +367,7 @@ def get_sorted_images(debugger):
     
     [result appendString:@"index   load addr(slide)       path\n"];
     [result appendString:@"--------------------------------------------------------\n"];
-    for (size_t image_idx = 0; image_idx < count; image_idx++) {
+    for (size_t image_idx = 0; image_idx < img_count; image_idx++) {
         ImageInfo image_info = infos[image_idx];
         
         [result appendFormat:@"[%3zu] %p(0x%09lx) %s\n", image_idx, image_info.loadAddress, image_info.slide, image_info.filePath];

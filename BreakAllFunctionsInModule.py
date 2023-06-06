@@ -51,9 +51,10 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
         module_path = module_file_spec.GetFilename()
         name = os.path.basename(module_path)
 
-        if lookup_module_name not in name:
+        if lookup_module_name != name:
             continue
 
+        module_found = True
         print("-----break functions in %s-----" % name)
         func_names = set()
         module_list = lldb.SBFileSpecList()
@@ -93,7 +94,6 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
             if options.verbose:
                 print(sym_start_addr.GetLineEntry())
 
-            module_found = True
             if options.individual:
                 brkpoint = target.BreakpointCreateBySBAddress(sym_start_addr)
                 # 判断下断点是否成功
