@@ -248,3 +248,16 @@ dump segments and section info from macho
 [0x104eaa510-0x104eaf3e0) 0x4ed0 Code Signature
 ```
 
+
+
+#### class_names
+
+dump class names from the specified module
+
+```stylus
+(lldb) class_names LLDBCode
+AppDelegate
+SceneDelegate
+ViewController
+```
+
