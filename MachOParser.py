@@ -334,6 +334,7 @@ def get_sorted_images(debugger):
         const struct mach_header *loadAddress;
         const char *filePath;
         intptr_t slide;
+        uint64_t size;
     } ImageInfo;
     '''
     command_script += r'''
@@ -345,10 +346,39 @@ def get_sorted_images(debugger):
         return;
     }
     for (uint32_t idx = 0; idx < img_count; idx++) {
-        const struct mach_header *header = (const struct mach_header *)_dyld_get_image_header(idx);
+        const struct mach_header *x_mach_header = (const struct mach_header *)_dyld_get_image_header(idx);
         const char *name = (const char *)_dyld_get_image_name(idx);
         intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
-        infos[idx] = (ImageInfo){header, name, slide};
+        
+        uint64_t size = 0;
+        if (x_mach_header) {
+            uint32_t magic = x_mach_header->magic;
+            if (magic == 0xfeedfacf) { // MH_MAGIC_64
+                uint32_t ncmds = x_mach_header->ncmds;
+                if (ncmds > 0) {
+                    uint64_t cur = (uint64_t)x_mach_header + sizeof(mach_header_t);
+                    struct load_command *sc = NULL;
+                    for (uint32_t i = 0; i < ncmds; i++, cur += sc->cmdsize) {
+                        sc = (struct load_command *)cur;
+                        if (sc->cmd != 0x19) { // LC_SEGMENT_64
+                            continue;
+                        }
+                        
+                        struct segment_command_64 *seg = (struct segment_command_64 *)sc;
+                        if (strcmp(seg->segname, "__PAGEZERO") == 0) {
+                            continue;
+                        }
+                        
+                        uint64_t tmp_size = seg->fileoff + seg->filesize;
+                        if (tmp_size > size) {
+                            size = tmp_size;
+                        }
+                    }
+                }
+            }
+        }
+        
+        infos[idx] = (ImageInfo){x_mach_header, name, slide, size};
     }
     
     // 排序
@@ -365,12 +395,41 @@ def get_sorted_images(debugger):
         infos[j] = image_info;
     }
     
-    [result appendString:@"index   load addr(slide)       path\n"];
+    [result appendString:@"index   load addr(slide)        size path\n"];
     [result appendString:@"--------------------------------------------------------\n"];
     for (size_t image_idx = 0; image_idx < img_count; image_idx++) {
         ImageInfo image_info = infos[image_idx];
+        uint64_t file_size = image_info.size;
+        NSString *size_str = nil;
+        NSInteger KB = 1000;
+        NSInteger MB = KB * KB;
+        NSInteger GB = MB * KB;
+        if (file_size < KB) {
+            size_str = [NSString stringWithFormat:@"%4lluB", file_size];
+        } else if (file_size < MB) {
+            CGFloat size = ((CGFloat)file_size) / KB;
+            if (size >= 100) {
+                size_str = [NSString stringWithFormat:@"%4.0fK", size];
+            } else {
+                size_str = [NSString stringWithFormat:@"%4.1fK", size];
+            }
+        } else if (file_size < GB) {
+            CGFloat size = ((CGFloat)file_size) / MB;
+            if (size >= 100) {
+                size_str = [NSString stringWithFormat:@"%4.0fM", size];
+            } else {
+                size_str = [NSString stringWithFormat:@"%4.1fM", size];
+            }
+        } else {
+            CGFloat size = ((CGFloat)file_size) / GB;
+            if (size >= 100) {
+                size_str = [NSString stringWithFormat:@"%4.0fG", size];
+            } else {
+                size_str = [NSString stringWithFormat:@"%4.1fG", size];
+            }
+        }
         
-        [result appendFormat:@"[%3zu] %p(0x%09lx) %s\n", image_idx, image_info.loadAddress, image_info.slide, image_info.filePath];
+        [result appendFormat:@"[%3zu] %p(0x%09lx) %@ %s\n", image_idx, image_info.loadAddress, image_info.slide, size_str, image_info.filePath];
     }
     
     free(infos);
