@@ -10,7 +10,7 @@ import os
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
         'command script add -h "dump the specified module" -f '
-        'DumpClassNamesInModule.dump_classes_in_module class_names')
+        'DumpClassNamesInModule.dump_classes_in_module classes')
 
 
 def dump_classes_in_module(debugger, command, result, internal_dict):
@@ -73,8 +73,13 @@ def get_module_regions(debugger, module):
         const char **names = (const char **)objc_copyClassNamesForImage(module_path, &nclass);
         if (names) {
             for (unsigned int i = 0; i < nclass; i++) {
-                const char *className = names[i];
-                [result appendFormat:@"%@\n", [NSString stringWithUTF8String:className]];
+                NSString *className = [NSString stringWithUTF8String:names[i]];
+                Class cls = NSClassFromString(className);
+                if (cls) {
+                    [result appendFormat:@"%@ <%p>\n", className, cls];
+                } else {
+                    [result appendFormat:@"%@\n", className];
+                }
             }
             free(names);
         }
@@ -111,8 +116,8 @@ def exe_script(debugger, command_script):
 
 def generate_option_parser():
     usage = "usage: %prog ModuleName\n" + \
-            "Use 'class_names -h' for option desc"
+            "Use 'classes -h' for option desc"
 
-    parser = optparse.OptionParser(usage=usage, prog='class_names')
+    parser = optparse.OptionParser(usage=usage, prog='classes')
 
     return parser

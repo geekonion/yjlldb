@@ -250,14 +250,14 @@ dump segments and section info from macho
 
 
 
-#### class_names
+#### classes
 
 dump class names from the specified module
 
 ```stylus
-(lldb) class_names LLDBCode
-AppDelegate
-SceneDelegate
-ViewController
+(lldb) classes
+AppDelegate <0x10468e378>
+SceneDelegate <0x10468e418>
+ViewController <0x10468e260>
 ```
 
