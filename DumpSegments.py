@@ -10,7 +10,7 @@ import os
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
         'command script add -h "dump segments of the specified module" -f '
-        'DumpSegments.dump_segments dump_segments')
+        'DumpSegments.dump_segments segments')
 
 
 def dump_segments(debugger, command, result, internal_dict):
@@ -35,30 +35,11 @@ def dump_segments(debugger, command, result, internal_dict):
     if args:
         lookup_module_name = ''.join(args)
     else:
-        lookup_module_name = None
+        lookup_module_name = ''
 
-    if not lookup_module_name:
-        result.AppendMessage(parser.get_usage())
-        return
+    segments = get_module_segments(debugger, lookup_module_name)
 
-    target = debugger.GetSelectedTarget()
-
-    module_found = False
-
-    for module in target.module_iter():
-        module_file_spec = module.GetFileSpec()
-        module_path = module_file_spec.GetFilename()
-        name = os.path.basename(module_path)
-        if lookup_module_name != name:
-            continue
-
-        module_found = True
-        segments = get_module_segments(debugger, lookup_module_name)
-
-    if module_found:
-        result.AppendMessage("{}".format(segments))
-    else:
-        result.AppendMessage("module {} not found".format(lookup_module_name))
+    result.AppendMessage("{}".format(segments))
 
 
 def get_module_segments(debugger, module):
@@ -101,7 +82,7 @@ def get_module_segments(debugger, module):
     '''
     command_script += 'NSString *x_module_name = @"' + module + '";'
     command_script += r'''
-    if (!x_module_name) {
+    if (![x_module_name length]) {
         x_module_name = [[[NSBundle mainBundle] executablePath] lastPathComponent];
     }
     
@@ -220,8 +201,8 @@ def exe_script(debugger, command_script):
 
 def generate_option_parser():
     usage = "usage: %prog ModuleName\n" + \
-            "Use 'dump_segments -h' for option desc"
+            "Use 'segments -h' for option desc"
 
-    parser = optparse.OptionParser(usage=usage, prog='dump_segments')
+    parser = optparse.OptionParser(usage=usage, prog='segments')
 
     return parser
