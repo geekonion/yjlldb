@@ -261,3 +261,14 @@ SceneDelegate <0x10468e418>
 ViewController <0x10468e260>
 ```
 
+
+
+#### exe_name
+
+print main executable name
+
+```stylus
+(lldb) exe_name
+LLDBCode
+```
+
