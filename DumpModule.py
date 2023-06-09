@@ -43,7 +43,6 @@ def dump_module(debugger, command, result, internal_dict):
 
     target = debugger.GetSelectedTarget()
 
-    total_count = 0
     module_found = False
 
     output_dir = os.path.expanduser('~') + '/lldb_dump_macho'

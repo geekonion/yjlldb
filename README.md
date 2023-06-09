@@ -194,7 +194,7 @@ UIKit apparently does not contain code signature
 
 #### dump_module
 
-dump the specified module
+dump the specified module from memory
 
 ```stylus
 (lldb) dump_module UIKit
@@ -207,3 +207,44 @@ ignore __DATA_DIRTY.__common
 ```
 
 > 注意：加载时被修改的数据未恢复
+
+
+
+#### dump segments
+
+dump segments and section info from macho
+
+```stylus
+(lldb) dump_segments LLDBCode
+[0x4e90000-0x104e90000) 0x100000000 __PAGEZERO ---/---
+[0x104e90000-0x104ea0000) 0x10000 __TEXT r-x/r-x
+	[0x104e968bc-0x104e9cfb8) 0x66fc __text
+	[0x104e9cfb8-0x104e9d210) 0x258 __stubs
+	[0x104e9d210-0x104e9d480) 0x270 __stub_helper
+	[0x104e9d480-0x104e9db20) 0x6a0 __objc_stubs
+	[0x104e9db20-0x104e9edaa) 0x128a __objc_methname
+	[0x104e9edaa-0x104e9f2d8) 0x52e __cstring
+	[0x104e9f2d8-0x104e9f354) 0x7c __objc_classname__TEXT
+	[0x104e9f354-0x104e9fe8e) 0xb3a __objc_methtype
+	[0x104e9fe90-0x104e9fe98) 0x8 __const
+	[0x104e9fe98-0x104e9ff40) 0xa8 __gcc_except_tab__TEXT
+	[0x104e9ff40-0x104e9fff0) 0xb0 __unwind_info
+[0x104ea0000-0x104ea4000) 0x4000 __DATA rw-/rw-
+	[0x104ea0000-0x104ea0070) 0x70 __got
+	[0x104ea0070-0x104ea0200) 0x190 __la_symbol_ptr
+	[0x104ea0200-0x104ea0420) 0x220 __const
+	[0x104ea0420-0x104ea0ba0) 0x780 __cfstring
+	[0x104ea0ba0-0x104ea0bc8) 0x28 __objc_classlist__DATA
+	[0x104ea0bc8-0x104ea0be8) 0x20 __objc_protolist__DATA
+	[0x104ea0be8-0x104ea0bf0) 0x8 __objc_imageinfo__DATA
+	[0x104ea0bf0-0x104ea1f28) 0x1338 __objc_const
+	[0x104ea1f28-0x104ea20d8) 0x1b0 __objc_selrefs
+	[0x104ea20d8-0x104ea2148) 0x70 __objc_classrefs__DATA
+	[0x104ea2148-0x104ea2150) 0x8 __objc_superrefs__DATA
+	[0x104ea2150-0x104ea2158) 0x8 __objc_ivar
+	[0x104ea2158-0x104ea22e8) 0x190 __objc_data
+	[0x104ea22e8-0x104ea2488) 0x1a0 __data
+[0x104ea4000-0x104eb0000) 0xc000 __LINKEDIT r--/r--
+[0x104eaa510-0x104eaf3e0) 0x4ed0 Code Signature
+```
+
