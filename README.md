@@ -190,3 +190,20 @@ Interlock:
 UIKit apparently does not contain code signature
 ```
 
+
+
+#### dump_module
+
+dump the specified module
+
+```stylus
+(lldb) dump_module UIKit
+dumping UIKit, this may take a while
+ignore __DATA.__bss
+ignore __DATA.__common
+ignore __DATA_DIRTY.__bss
+ignore __DATA_DIRTY.__common
+924057600 bytes dump to ~/lldb_dump_macho/UIKit/macho_UIKit
+```
+
+> 注意：加载时被修改的数据未恢复
