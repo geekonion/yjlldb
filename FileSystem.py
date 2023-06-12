@@ -397,7 +397,7 @@ def exe_script(debugger, command_script):
     # 末尾有两个\n
     if response.endswith('\n\n'):
         response = response[:-2]
-    # 末尾有两个\n
+    # 末尾有一个\n
     if response.endswith('\n'):
         response = response[:-1]
 
