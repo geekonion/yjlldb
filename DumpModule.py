@@ -41,30 +41,15 @@ def dump_module(debugger, command, result, internal_dict):
         result.AppendMessage(parser.get_usage())
         return
 
-    target = debugger.GetSelectedTarget()
-
-    module_found = False
-
     output_dir = os.path.expanduser('~') + '/lldb_dump_macho'
     try_mkdir(output_dir)
-    dump_message = ''
-    for module in target.module_iter():
-        module_file_spec = module.GetFileSpec()
-        module_path = module_file_spec.GetFilename()
-        name = os.path.basename(module_path)
-        if lookup_module_name != name:
-            continue
 
-        module_found = True
-        module_info_str = get_module_regions(debugger, lookup_module_name)
-        module_info = json.loads(module_info_str)
-        print('dumping {}, this may take a while'.format(lookup_module_name))
-        dump_message = dump_module_with_info(debugger, module_info, output_dir)
+    module_info_str = get_module_regions(debugger, lookup_module_name)
+    module_info = json.loads(module_info_str)
+    print('dumping {}, this may take a while'.format(lookup_module_name))
+    dump_message = dump_module_with_info(debugger, module_info, output_dir)
 
-    if module_found:
-        result.AppendMessage("{}".format(dump_message))
-    else:
-        result.AppendMessage("module {} not found".format(lookup_module_name))
+    result.AppendMessage("{}".format(dump_message))
 
 
 def dump_region(debugger, module_name, slide, region, output_dir):
@@ -173,27 +158,36 @@ def get_module_regions(debugger, module):
         uint32_t cmdsize;	/* total size of command in bytes */
     };
     '''
-    command_script += 'NSString *x_module_name = @"' + module + '";'
+    command_script += 'NSString *keyword = @"' + module + '";'
     command_script += r'''
-    if (!x_module_name) {
-        x_module_name = [[[NSBundle mainBundle] executablePath] lastPathComponent];
+    if (!keyword) {
+        keyword = [[[NSBundle mainBundle] executablePath] lastPathComponent];
     }
     
     const mach_header_t *x_mach_header = NULL;
+    uint64_t address = 0;
     intptr_t slide = 0;
-    uint32_t image_count = (uint32_t)_dyld_image_count();
-    for (uint32_t i = 0; i < image_count; i++) {
-        const char *name = (const char *)_dyld_get_image_name(i);
-        if (!name) {
-            continue;
-        }
-        const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
-        
-        NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
-        if ([module_name isEqualToString:x_module_name]) {
-            x_mach_header = mach_header;
-            slide = (intptr_t)_dyld_get_image_vmaddr_slide(i);
-            break;
+    NSString *x_module_name = keyword;
+    BOOL isAddress = [keyword hasPrefix:@"0x"];
+    if (isAddress) {
+        address = strtoull((const char *)[keyword UTF8String], 0, 16);
+        x_mach_header = (const mach_header_t *)address;
+    } else {
+        x_module_name = keyword;
+        uint32_t image_count = (uint32_t)_dyld_image_count();
+        for (uint32_t i = 0; i < image_count; i++) {
+            const char *name = (const char *)_dyld_get_image_name(i);
+            if (!name) {
+                continue;
+            }
+            const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
+            
+            NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
+            if ([module_name isEqualToString:module_name]) {
+                x_mach_header = mach_header;
+                slide = (intptr_t)_dyld_get_image_vmaddr_slide(i);
+                break;
+            }
         }
     }
     
@@ -209,6 +203,17 @@ def get_module_regions(debugger, module):
                 for (uint32_t i = 0; i < ncmds; i++, cur += sc->cmdsize) {
                     sc = (struct load_command *)cur;
                     if (sc->cmd != 0x19) { // LC_SEGMENT_64
+                        if (isAddress && sc->cmd == 0xd) { //LC_ID_DYLIB
+                            struct dylib_command *dc = (struct dylib_command *)sc;
+                            char *path = (char *)dc + dc->dylib.name.offset;
+                            if (path) {
+                                char *lib_path = strdup(path);
+                                if (lib_path) {
+                                    x_module_name = [[NSString stringWithUTF8String:lib_path] lastPathComponent];
+                                    free(lib_path);
+                                }
+                            }
+                        }
                         continue;
                     }
                     
@@ -216,6 +221,11 @@ def get_module_regions(debugger, module):
                     if (strcmp(seg->segname, "__PAGEZERO") == 0) {
                         continue;
                     }
+                    
+                    if (slide == 0 && strcmp(seg->segname, "__TEXT") == 0) {
+                        slide = (uint64_t)x_mach_header - seg->vmaddr;
+                    }
+                    
                     uint32_t nsects = seg->nsects;
                     char *sec_start = (char *)seg + sizeof(struct segment_command_64);
                     

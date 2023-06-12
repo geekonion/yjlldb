@@ -87,20 +87,27 @@ def get_module_segments(debugger, module):
     }
     
     const mach_header_t *x_mach_header = NULL;
+    uint64_t address = 0;
     intptr_t slide = 0;
-    uint32_t image_count = (uint32_t)_dyld_image_count();
-    for (uint32_t i = 0; i < image_count; i++) {
-        const char *name = (const char *)_dyld_get_image_name(i);
-        if (!name) {
-            continue;
-        }
-        const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
-        
-        NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
-        if ([module_name isEqualToString:x_module_name]) {
-            x_mach_header = mach_header;
-            slide = (intptr_t)_dyld_get_image_vmaddr_slide(i);
-            break;
+    BOOL isAddress = [x_module_name hasPrefix:@"0x"];
+    if (isAddress) {
+        address = strtoull((const char *)[x_module_name UTF8String], 0, 16);
+        x_mach_header = (const mach_header_t *)address;
+    } else {
+        uint32_t image_count = (uint32_t)_dyld_image_count();
+        for (uint32_t i = 0; i < image_count; i++) {
+            const char *name = (const char *)_dyld_get_image_name(i);
+            if (!name) {
+                continue;
+            }
+            const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
+            
+            NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
+            if ([module_name isEqualToString:x_module_name]) {
+                x_mach_header = mach_header;
+                slide = (intptr_t)_dyld_get_image_vmaddr_slide(i);
+                break;
+            }
         }
     }
     
@@ -140,6 +147,10 @@ def get_module_segments(debugger, module):
                     sc = (struct load_command *)cur;
                     if (sc->cmd == 0x19) { // LC_SEGMENT_64
                         struct segment_command_64 *seg = (struct segment_command_64 *)sc;
+                        if (slide == 0 && strcmp(seg->segname, "__TEXT") == 0) {
+                            slide = (uint64_t)x_mach_header - seg->vmaddr;
+                        }
+                        
                         uint32_t nsects = seg->nsects;
                         char *sec_start = (char *)seg + sizeof(struct segment_command_64);
                         [result appendFormat:@"[0x%llx-0x%llx) 0x%llx %s %@/%@\n", seg->vmaddr + slide, seg->vmaddr + slide + seg->vmsize, seg->vmsize, seg->segname, gen_prot_str(seg->initprot), gen_prot_str(seg->maxprot)];
