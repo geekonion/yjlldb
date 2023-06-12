@@ -149,12 +149,10 @@ def get_entitlements(debugger, keyword):
     uint64_t address = 0;
     BOOL isAddress = [keyword hasPrefix:@"0x"];
     if (isAddress) {
-        sscanf((const char *)[keyword UTF8String], "%llx", &address);
+        address = strtoull((const char *)[keyword UTF8String], 0, 16);
     }
     char *ent_str = NULL;
     const mach_header_t *headers[256] = {0};
-    NSMutableArray *names = [NSMutableArray array];
-    intptr_t slides[256] = {0};
     int name_count = 0;
     if (!keyword || [@"NULL" isEqualToString:keyword]) {
         keyword = [[[NSBundle mainBundle] executablePath] lastPathComponent];
@@ -175,9 +173,7 @@ def get_entitlements(debugger, keyword):
         NSRange range = [module_name rangeOfString:keyword options:NSCaseInsensitiveSearch];
         if (isAddress || range.location != NSNotFound) {
             headers[name_count] = mach_header;
-            slides[name_count] = (intptr_t)_dyld_get_image_vmaddr_slide(i);
             name_count++;
-            [names addObject:module_name];
         }
         if (isAddress) {
             break;
@@ -185,35 +181,9 @@ def get_entitlements(debugger, keyword):
     }
     
     char *lib_path = NULL;
-    if (isAddress && [names count] == 0) {
-        const mach_header_t *header = (const mach_header_t *)address;
-        uint32_t magic = header->magic;
-        if (magic == 0xfeedfacf) { // MH_MAGIC_64
-            uint32_t ncmds = header->ncmds;
-            if (ncmds > 50) {
-            } else if (ncmds > 0) {
-                uintptr_t cur = (uintptr_t)header + sizeof(mach_header_t);
-                struct load_command *sc = NULL;
-                for (uint i = 0; i < ncmds; i++, cur += sc->cmdsize) {
-                    sc = (struct load_command *)cur;
-                    if (sc->cmd == 0xd) { //LC_ID_DYLIB
-                        struct dylib_command *dc = (struct dylib_command *)sc;
-                        char *path = (char *)dc + dc->dylib.name.offset;
-                        if (path) {
-                            lib_path = strdup(path);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        if (lib_path) {
-            NSString *module_name = [[NSString stringWithUTF8String:lib_path] lastPathComponent];
-            headers[name_count] = header;
-            slides[name_count] = 0;
-            name_count++;
-            [names addObject:module_name];
-        }
+    if (isAddress && name_count == 0) {
+        headers[name_count] = (const mach_header_t *)address;
+        name_count++;
     }
     
     NSMutableString *result = [NSMutableString string];
@@ -231,30 +201,39 @@ def get_entitlements(debugger, keyword):
         
         struct load_command *lc = (struct load_command *)((char *)mach_header + sizeof(mach_header_t));
         struct linkedit_data_command *lc_signature = NULL;
-        intptr_t slide       = slides[idx];
+        uint64_t text_file_offset = 0;
+        uint64_t text_vmaddr = 0;
         uint64_t file_offset = 0;
-        uint64_t vmaddr      = 0;
+        uint64_t li_vmaddr = 0;
+        NSString *name = nil;
         BOOL sig_found = NO;
         for (uint32_t i = 0; i < ncmds; i++) {
             if (lc->cmd == 0x19) { // LC_SEGMENT_64
                 struct segment_command_64 *seg = (struct segment_command_64 *)lc;
                 if (strcmp(seg->segname, "__LINKEDIT") == 0) { //SEG_LINKEDIT
                     file_offset = seg->fileoff;
-                    vmaddr      = seg->vmaddr;
+                    li_vmaddr      = seg->vmaddr;
+                } else if (strcmp(seg->segname, "__TEXT") == 0) {
+                    text_file_offset = seg->fileoff;
+                    text_vmaddr = seg->vmaddr;
+                }
+            } else if (lc->cmd == 0xd) { //LC_ID_DYLIB
+                struct dylib_command *dc = (struct dylib_command *)lc;
+                char *path = (char *)dc + dc->dylib.name.offset;
+                if (path) {
+                    lib_path = strdup(path);
+                    name = [[NSString stringWithUTF8String:lib_path] lastPathComponent];
                 }
             } else if (lc->cmd == 0x1d) { //LC_CODE_SIGNATURE
                 lc_signature = (struct linkedit_data_command *)lc;
             }
             lc = (struct load_command *)((char *)lc + lc->cmdsize);
         }
+        
         if (lc_signature) {
             sig_found = YES;
             char *sign_ptr = NULL;
-            if (slide == 0) {
-                sign_ptr = (char *)mach_header + lc_signature->dataoff;
-            } else {
-                sign_ptr = (char *)vmaddr + lc_signature->dataoff - file_offset + slide;
-            }
+            sign_ptr = (char *)mach_header + (li_vmaddr - text_vmaddr) + lc_signature->dataoff - file_offset;
 #if __arm64e__
             void *sign = (void *)ptrauth_strip(codeSignature, ptrauth_key_function_pointer);
 #else
@@ -264,7 +243,7 @@ def get_entitlements(debugger, keyword):
             uint32_t super_blob_magic = _OSSwapInt32(superBlob->magic);
             // 签名段数据被破坏
             if (super_blob_magic != 0xfade0cc0) { // CSMAGIC_EMBEDDED_SIGNATURE
-                [result appendFormat:@"invalid signature magic found at %@!0x%x, signature: %p, header at: %p\n", names[idx], lc_signature->dataoff, sign, mach_header];
+                [result appendFormat:@"invalid signature magic found at %@!0x%x, signature: %p, header at: %p\n", name, lc_signature->dataoff, sign, mach_header];
                 uint32_t sign_size = lc_signature->datasize;
                 const char *prefix = "<?xml";
                 char *ent_ptr = (char *)memmem(sign, sign_size, prefix, strlen(prefix));
@@ -282,7 +261,7 @@ def get_entitlements(debugger, keyword):
                     ent_str = (char *)calloc(length + 1, sizeof(char));
                     if (ent_str) {
                         memcpy(ent_str, ent_ptr, length);
-                        [result appendFormat:@"entitlements of %@:\n%s", names[idx], ent_str];
+                        [result appendFormat:@"entitlements of %@:\n%s", name, ent_str];
                         free(ent_str);
                     }
                 }
@@ -311,7 +290,7 @@ def get_entitlements(debugger, keyword):
                     ent_str = (char *)calloc(length + 1, sizeof(char));
                     if (ent_str) {
                         memcpy(ent_str, ent_ptr, length);
-                        [result appendFormat:@"entitlements of %@:\n%s", names[idx], ent_str];
+                        [result appendFormat:@"entitlements of %@:\n%s", name, ent_str];
                         free(ent_str);
                         ent_found = YES;
                     }
@@ -319,12 +298,12 @@ def get_entitlements(debugger, keyword):
                 }
             }
             if (!ent_found) {
-                [result appendFormat:@"%@ apparently does not contain any entitlements\n", names[idx]];
+                [result appendFormat:@"%@ apparently does not contain any entitlements, signature: %p\n", name, sign];
             }
         }
         
         if (!sig_found) {
-            [result appendFormat:@"%@ apparently does not contain code signature\n", names[idx]];
+            [result appendFormat:@"%@ apparently does not contain code signature\n", name];
         }
     }
     if (lib_path) {
