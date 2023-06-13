@@ -210,12 +210,12 @@ ignore __DATA_DIRTY.__common
 
 
 
-#### dump segments
+#### segments
 
 dump segments and section info from macho
 
 ```stylus
-(lldb) dump_segments LLDBCode
+(lldb) segments LLDBCode
 [0x4e90000-0x104e90000) 0x100000000 __PAGEZERO ---/---
 [0x104e90000-0x104ea0000) 0x10000 __TEXT r-x/r-x
 	[0x104e968bc-0x104e9cfb8) 0x66fc __text
