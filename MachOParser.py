@@ -48,7 +48,28 @@ def image_list(debugger, command, result, internal_dict):
     """
     List current executable and dependent shared library images, sorted by load address.
     """
-    ret_str = get_sorted_images(debugger)
+
+    # 去掉转义符
+    command = command.replace('\\', '\\\\')
+    # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
+    command_args = shlex.split(command, posix=False)
+    # 创建parser
+    parser = generate_image_list_option_parser()
+    # 解析参数，捕获异常
+    try:
+        # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
+        (options, args) = parser.parse_args(command_args)
+    except Exception as error:
+        print(error)
+        result.SetError("\n" + parser.get_usage())
+        return
+
+    if options.count:
+        count = options.count
+    else:
+        count = '0'
+
+    ret_str = get_sorted_images(debugger, count)
     result.AppendMessage(ret_str)
 
 
@@ -317,7 +338,7 @@ def get_entitlements(debugger, keyword):
     return ret_str
 
 
-def get_sorted_images(debugger):
+def get_sorted_images(debugger, count):
     command_script = '@import Foundation;'
     command_script += r'''
     typedef struct ImageInfo {
@@ -328,6 +349,7 @@ def get_sorted_images(debugger):
         uint64_t linkedit_size;
     } ImageInfo;
     '''
+    command_script += 'uint32_t count = ' + count + ';\n'
     command_script += r'''
     NSMutableString *result = [NSMutableString string];
     
@@ -393,7 +415,8 @@ def get_sorted_images(debugger):
     [result appendString:@"index   load addr(slide)       vmsize path\n"];
     [result appendString:@"--------------------------------------------------------\n"];
     
-    for (size_t image_idx = 0; image_idx < img_count; image_idx++) {
+    uint32_t r_count = count > 0 ? count : img_count;
+    for (size_t image_idx = 0; image_idx < r_count; image_idx++) {
         ImageInfo image_info = infos[image_idx];
         uint64_t file_size = 0;
         if (system_lib_slide == image_info.slide) {
@@ -469,5 +492,16 @@ def generate_option_parser():
     usage = "usage: %prog [module name]\n"
 
     parser = optparse.OptionParser(usage=usage, prog='entitlements')
+
+    return parser
+
+
+def generate_image_list_option_parser():
+    usage = "usage: %prog [-c]\n"
+
+    parser = optparse.OptionParser(usage=usage, prog='image_list')
+    parser.add_option("-c", "--count",
+                      dest="count",
+                      help="image count")
 
     return parser
