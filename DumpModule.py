@@ -147,6 +147,20 @@ def get_module_regions(debugger, module):
         uint32_t    nsects;        /* number of sections in segment */
         uint32_t    flags;        /* flags */
     };
+    struct section_64 { /* for 64-bit architectures */
+        char		sectname[16];	/* name of this section */
+        char		segname[16];	/* segment this section goes in */
+        uint64_t	addr;		/* memory address of this section */
+        uint64_t	size;		/* size in bytes of this section */
+        uint32_t	offset;		/* file offset of this section */
+        uint32_t	align;		/* section alignment (power of 2) */
+        uint32_t	reloff;		/* file offset of relocation entries */
+        uint32_t	nreloc;		/* number of relocation entries */
+        uint32_t	flags;		/* flags (section type and attributes)*/
+        uint32_t	reserved1;	/* reserved (for offset or index) */
+        uint32_t	reserved2;	/* reserved (for count or sizeof) */
+        uint32_t	reserved3;	/* reserved */
+    };
     #define __LP64__ 1
     #ifdef __LP64__
     typedef struct mach_header_64 mach_header_t;
@@ -156,6 +170,24 @@ def get_module_regions(debugger, module):
     struct load_command {
         uint32_t cmd;		/* type of load command */
         uint32_t cmdsize;	/* total size of command in bytes */
+    };
+    union lc_str {
+        uint32_t	offset;	/* offset to the string */
+    #ifndef __LP64__
+        char		*ptr;	/* pointer to the string */
+    #endif 
+    };
+    struct dylib {
+        union lc_str  name;			/* library's path name */
+        uint32_t timestamp;			/* library's build time stamp */
+        uint32_t current_version;		/* library's current version number */
+        uint32_t compatibility_version;	/* library's compatibility vers number*/
+    };
+    struct dylib_command {
+        uint32_t	cmd;		/* LC_ID_DYLIB, LC_LOAD_{,WEAK_}DYLIB,
+                           LC_REEXPORT_DYLIB */
+        uint32_t	cmdsize;	/* includes pathname string */
+        struct dylib	dylib;		/* the library identification */
     };
     '''
     command_script += 'NSString *keyword = @"' + module + '";'

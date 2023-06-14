@@ -341,8 +341,40 @@ def get_entitlements(debugger, keyword):
 def get_sorted_images(debugger, count):
     command_script = '@import Foundation;'
     command_script += r'''
+    struct mach_header_64 {
+        uint32_t    magic;        /* mach magic number identifier */
+        int32_t        cputype;    /* cpu specifier */
+        int32_t        cpusubtype;    /* machine specifier */
+        uint32_t    filetype;    /* type of file */
+        uint32_t    ncmds;        /* number of load commands */
+        uint32_t    sizeofcmds;    /* the size of all the load commands */
+        uint32_t    flags;        /* flags */
+        uint32_t    reserved;    /* reserved */
+    };
+    struct segment_command_64 { /* for 64-bit architectures */
+        uint32_t	cmd;		/* LC_SEGMENT_64 */
+        uint32_t	cmdsize;	/* includes sizeof section_64 structs */
+        char		segname[16];	/* segment name */
+        uint64_t	vmaddr;		/* memory address of this segment */
+        uint64_t	vmsize;		/* memory size of this segment */
+        uint64_t	fileoff;	/* file offset of this segment */
+        uint64_t	filesize;	/* amount to map from the file */
+        int32_t		maxprot;	/* maximum VM protection */
+        int32_t		initprot;	/* initial VM protection */
+        uint32_t	nsects;		/* number of sections in segment */
+        uint32_t	flags;		/* flags */
+    };
+    #ifdef __LP64__
+    typedef struct mach_header_64 mach_header_t;
+    #else
+    typedef struct mach_header mach_header_t;
+    #endif
+    struct load_command {
+        uint32_t cmd;		/* type of load command */
+        uint32_t cmdsize;	/* total size of command in bytes */
+    };
     typedef struct ImageInfo {
-        const struct mach_header *loadAddress;
+        const mach_header_t *loadAddress;
         const char *filePath;
         intptr_t slide;
         uint64_t vm_size;
@@ -360,7 +392,7 @@ def get_sorted_images(debugger, count):
     }
     intptr_t system_lib_slide = 0;
     for (uint32_t idx = 0; idx < img_count; idx++) {
-        const struct mach_header *x_mach_header = (const struct mach_header *)_dyld_get_image_header(idx);
+        const mach_header_t *x_mach_header = (const mach_header_t *)_dyld_get_image_header(idx);
         const char *name = (const char *)_dyld_get_image_name(idx);
         intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
         if (strcmp(name, "/usr/lib/libSystem.B.dylib") == 0) {

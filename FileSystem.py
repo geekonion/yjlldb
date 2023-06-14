@@ -264,6 +264,70 @@ def get_caches_directory(debugger):
 def get_group_path(debugger):
     command_script = '@import Foundation;'
     command_script += r'''
+    struct mach_header_64 {
+        uint32_t    magic;        /* mach magic number identifier */
+        int32_t        cputype;    /* cpu specifier */
+        int32_t        cpusubtype;    /* machine specifier */
+        uint32_t    filetype;    /* type of file */
+        uint32_t    ncmds;        /* number of load commands */
+        uint32_t    sizeofcmds;    /* the size of all the load commands */
+        uint32_t    flags;        /* flags */
+        uint32_t    reserved;    /* reserved */
+    };
+
+    struct segment_command_64 { /* for 64-bit architectures */
+        uint32_t    cmd;        /* LC_SEGMENT_64 */
+        uint32_t    cmdsize;    /* includes sizeof section_64 structs */
+        char        segname[16];    /* segment name */
+        uint64_t    vmaddr;        /* memory address of this segment */
+        uint64_t    vmsize;        /* memory size of this segment */
+        uint64_t    fileoff;    /* file offset of this segment */
+        uint64_t    filesize;    /* amount to map from the file */
+        int32_t        maxprot;    /* maximum VM protection */
+        int32_t        initprot;    /* initial VM protection */
+        uint32_t    nsects;        /* number of sections in segment */
+        uint32_t    flags;        /* flags */
+    };
+    #ifdef __LP64__
+    typedef struct mach_header_64 mach_header_t;
+    #else
+    typedef struct mach_header mach_header_t;
+    #endif
+    
+    struct CS_Blob {
+        uint32_t magic;                 // magic number
+        uint32_t length;                // total length of blob
+    };
+    
+    struct CS_BlobIndex {
+        uint32_t type;                  // type of entry
+        uint32_t offset;                // offset of entry
+    };
+    
+    struct CS_SuperBlob {
+        uint32_t magic;                 // magic number
+        uint32_t length;                // total length of SuperBlob
+        uint32_t count;                 // number of index entries following
+        struct CS_BlobIndex index[];           // (count) entries
+        // followed by Blobs in no particular order as indicated by offsets in index
+    };
+    struct load_command {
+        uint32_t cmd;		/* type of load command */
+        uint32_t cmdsize;	/* total size of command in bytes */
+    };
+    struct linkedit_data_command {
+        uint32_t	cmd;		/* LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO,
+                       LC_FUNCTION_STARTS, LC_DATA_IN_CODE,
+                       LC_DYLIB_CODE_SIGN_DRS,
+                       LC_LINKER_OPTIMIZATION_HINT,
+                       LC_DYLD_EXPORTS_TRIE, or
+                       LC_DYLD_CHAINED_FIXUPS. */
+        uint32_t	cmdsize;	/* sizeof(struct linkedit_data_command) */
+        uint32_t	dataoff;	/* file offset of data in __LINKEDIT segment */
+        uint32_t	datasize;	/* file size of data in __LINKEDIT segment  */
+    };
+    '''
+    command_script += r'''
     char *groupID_c = NULL;
     const mach_header_t *mach_header = NULL;
     

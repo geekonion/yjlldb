@@ -69,6 +69,31 @@ def get_module_segments(debugger, module):
         uint32_t    nsects;        /* number of sections in segment */
         uint32_t    flags;        /* flags */
     };
+    struct section_64 { /* for 64-bit architectures */
+        char		sectname[16];	/* name of this section */
+        char		segname[16];	/* segment this section goes in */
+        uint64_t	addr;		/* memory address of this section */
+        uint64_t	size;		/* size in bytes of this section */
+        uint32_t	offset;		/* file offset of this section */
+        uint32_t	align;		/* section alignment (power of 2) */
+        uint32_t	reloff;		/* file offset of relocation entries */
+        uint32_t	nreloc;		/* number of relocation entries */
+        uint32_t	flags;		/* flags (section type and attributes)*/
+        uint32_t	reserved1;	/* reserved (for offset or index) */
+        uint32_t	reserved2;	/* reserved (for count or sizeof) */
+        uint32_t	reserved3;	/* reserved */
+    };
+    struct linkedit_data_command {
+        uint32_t	cmd;		/* LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO,
+                       LC_FUNCTION_STARTS, LC_DATA_IN_CODE,
+                       LC_DYLIB_CODE_SIGN_DRS,
+                       LC_LINKER_OPTIMIZATION_HINT,
+                       LC_DYLD_EXPORTS_TRIE, or
+                       LC_DYLD_CHAINED_FIXUPS. */
+        uint32_t	cmdsize;	/* sizeof(struct linkedit_data_command) */
+        uint32_t	dataoff;	/* file offset of data in __LINKEDIT segment */
+        uint32_t	datasize;	/* file size of data in __LINKEDIT segment  */
+    };
     #define __LP64__ 1
     #ifdef __LP64__
     typedef struct mach_header_64 mach_header_t;
