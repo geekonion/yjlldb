@@ -40,6 +40,7 @@ def show_entitlements(debugger, command, result, internal_dict):
     else:
         module_name = 'NULL'
 
+    module_name = module_name.replace("'", "")
     ret_str = get_entitlements(debugger, module_name)
     result.AppendMessage(ret_str)
 
@@ -474,7 +475,8 @@ def get_sorted_images(debugger, count):
             size_str = [NSString stringWithFormat:@"%5.1fG", size];
         }
         
-        [result appendFormat:@"[%3zu] %p(0x%09lx) %@ %s\n", image_idx, image_info.loadAddress, image_info.slide, size_str, image_info.filePath];
+        // 兼容中文需要将路径转为NSString
+        [result appendFormat:@"[%3zu] %p(0x%09lx) %@ %@\n", image_idx, image_info.loadAddress, image_info.slide, size_str, [NSString stringWithUTF8String:image_info.filePath]]    
     }
     
     free(infos);

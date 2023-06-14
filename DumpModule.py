@@ -41,6 +41,7 @@ def dump_module(debugger, command, result, internal_dict):
         result.AppendMessage(parser.get_usage())
         return
 
+    lookup_module_name = lookup_module_name.replace("'", "")
     output_dir = os.path.expanduser('~') + '/lldb_dump_macho'
     try_mkdir(output_dir)
 
@@ -69,7 +70,7 @@ def dump_region(debugger, module_name, slide, region, output_dir):
 
 
 def dump_module_with_info(debugger, module_info, output_dir):
-    module_name = module_info["module_name"]
+    module_name = module_info["module_name"].replace(' ', '_')
     slide = module_info["slide"]
     module_regions = module_info["regions"]
     module_size = module_info["size"]
@@ -205,7 +206,6 @@ def get_module_regions(debugger, module):
         address = strtoull((const char *)[keyword UTF8String], 0, 16);
         x_mach_header = (const mach_header_t *)address;
     } else {
-        x_module_name = keyword;
         uint32_t image_count = (uint32_t)_dyld_image_count();
         for (uint32_t i = 0; i < image_count; i++) {
             const char *name = (const char *)_dyld_get_image_name(i);

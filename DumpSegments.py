@@ -37,6 +37,7 @@ def dump_segments(debugger, command, result, internal_dict):
     else:
         lookup_module_name = ''
 
+    lookup_module_name = lookup_module_name.replace("'", "")
     segments = get_module_segments(debugger, lookup_module_name)
 
     result.AppendMessage("{}".format(segments))

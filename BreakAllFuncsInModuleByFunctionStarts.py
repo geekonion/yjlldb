@@ -41,6 +41,7 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
         result.AppendMessage(parser.get_usage())
         return
 
+    lookup_module_name = lookup_module_name.replace("'", "")
     target = debugger.GetSelectedTarget()
 
     total_count = 0

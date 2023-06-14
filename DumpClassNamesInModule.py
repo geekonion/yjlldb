@@ -37,6 +37,7 @@ def dump_classes_in_module(debugger, command, result, internal_dict):
     else:
         lookup_module_name = ''
 
+    lookup_module_name = lookup_module_name.replace("'", "")
     class_names_str = get_module_regions(debugger, lookup_module_name)
     class_names = class_names_str.split('\n')
     class_names = sorted(class_names)
@@ -115,7 +116,7 @@ def exe_script(debugger, command_script):
 
 
 def generate_option_parser():
-    usage = "usage: %prog ModuleName\n" + \
+    usage = "usage: %prog [ModuleName]\n" + \
             "Use 'classes -h' for option desc"
 
     parser = optparse.OptionParser(usage=usage, prog='classes')
