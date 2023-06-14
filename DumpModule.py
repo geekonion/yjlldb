@@ -183,7 +183,7 @@ def get_module_regions(debugger, module):
             const mach_header_t *mach_header = (const mach_header_t *)_dyld_get_image_header(i);
             
             NSString *module_name = [[NSString stringWithUTF8String:name] lastPathComponent];
-            if ([module_name isEqualToString:module_name]) {
+            if ([module_name isEqualToString:x_module_name]) {
                 x_mach_header = mach_header;
                 slide = (intptr_t)_dyld_get_image_vmaddr_slide(i);
                 break;

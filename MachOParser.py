@@ -324,7 +324,8 @@ def get_sorted_images(debugger):
         const struct mach_header *loadAddress;
         const char *filePath;
         intptr_t slide;
-        uint64_t size;
+        uint64_t vm_size;
+        uint64_t linkedit_size;
     } ImageInfo;
     '''
     command_script += r'''
@@ -335,12 +336,17 @@ def get_sorted_images(debugger):
     if (!infos) {
         return;
     }
+    intptr_t system_lib_slide = 0;
     for (uint32_t idx = 0; idx < img_count; idx++) {
         const struct mach_header *x_mach_header = (const struct mach_header *)_dyld_get_image_header(idx);
         const char *name = (const char *)_dyld_get_image_name(idx);
         intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
+        if (strcmp(name, "/usr/lib/libSystem.B.dylib") == 0) {
+            system_lib_slide = slide;
+        }
         
-        uint64_t size = 0;
+        uint64_t file_size = 0;
+        uint64_t linkedit_size = 0;
         if (x_mach_header) {
             uint32_t magic = x_mach_header->magic;
             if (magic == 0xfeedfacf) { // MH_MAGIC_64
@@ -357,18 +363,17 @@ def get_sorted_images(debugger):
                         struct segment_command_64 *seg = (struct segment_command_64 *)sc;
                         if (strcmp(seg->segname, "__PAGEZERO") == 0) {
                             continue;
+                        } else if (strcmp(seg->segname, "__LINKEDIT") == 0) {
+                            linkedit_size = seg->vmsize;
                         }
                         
-                        uint64_t tmp_size = seg->fileoff + seg->filesize;
-                        if (tmp_size > size) {
-                            size = tmp_size;
-                        }
+                        file_size += seg->vmsize;
                     }
                 }
             }
         }
-        
-        infos[idx] = (ImageInfo){x_mach_header, name, slide, size};
+        // 系统库的__LINKEDIT段是共用的，并且占了大部分size，所以系统库的size大多相近
+        infos[idx] = (ImageInfo){x_mach_header, name, slide, file_size, linkedit_size};
     }
     
     // 排序
@@ -385,38 +390,33 @@ def get_sorted_images(debugger):
         infos[j] = image_info;
     }
     
-    [result appendString:@"index   load addr(slide)        size path\n"];
+    [result appendString:@"index   load addr(slide)       vmsize path\n"];
     [result appendString:@"--------------------------------------------------------\n"];
+    
     for (size_t image_idx = 0; image_idx < img_count; image_idx++) {
         ImageInfo image_info = infos[image_idx];
-        uint64_t file_size = image_info.size;
+        uint64_t file_size = 0;
+        if (system_lib_slide == image_info.slide) {
+            // 注意：系统库__LINKEDIT段是共用的，此处不计入大小
+            file_size = image_info.vm_size - image_info.linkedit_size;
+        } else {
+            file_size = image_info.vm_size;
+        }
         NSString *size_str = nil;
         NSInteger KB = 1000;
         NSInteger MB = KB * KB;
         NSInteger GB = MB * KB;
         if (file_size < KB) {
-            size_str = [NSString stringWithFormat:@"%4lluB", file_size];
+            size_str = [NSString stringWithFormat:@"%5lluB", file_size];
         } else if (file_size < MB) {
             CGFloat size = ((CGFloat)file_size) / KB;
-            if (size >= 100) {
-                size_str = [NSString stringWithFormat:@"%4.0fK", size];
-            } else {
-                size_str = [NSString stringWithFormat:@"%4.1fK", size];
-            }
+            size_str = [NSString stringWithFormat:@"%5.1fK", size];
         } else if (file_size < GB) {
             CGFloat size = ((CGFloat)file_size) / MB;
-            if (size >= 100) {
-                size_str = [NSString stringWithFormat:@"%4.0fM", size];
-            } else {
-                size_str = [NSString stringWithFormat:@"%4.1fM", size];
-            }
+            size_str = [NSString stringWithFormat:@"%5.1fM", size];
         } else {
             CGFloat size = ((CGFloat)file_size) / GB;
-            if (size >= 100) {
-                size_str = [NSString stringWithFormat:@"%4.0fG", size];
-            } else {
-                size_str = [NSString stringWithFormat:@"%4.1fG", size];
-            }
+            size_str = [NSString stringWithFormat:@"%5.1fG", size];
         }
         
         [result appendFormat:@"[%3zu] %p(0x%09lx) %@ %s\n", image_idx, image_info.loadAddress, image_info.slide, size_str, image_info.filePath];
