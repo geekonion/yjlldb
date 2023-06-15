@@ -9,13 +9,13 @@ import os
 
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
-        'command script add -h "dump the specified module" -f '
+        'command script add -h "dump all class names in the specified module" -f '
         'DumpClassNamesInModule.dump_classes_in_module classes')
 
 
 def dump_classes_in_module(debugger, command, result, internal_dict):
     """
-    dump the specified module
+    dump all class names in the specified module
     """
     # 去掉转义符
     command = command.replace('\\', '\\\\')
