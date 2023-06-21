@@ -289,7 +289,7 @@ def exe_script(debugger, command_script):
 
 def generate_option_parser():
     usage = "usage: %prog [options] ModuleName\n" + \
-            "Use 'bafs -h' for option desc"
+            "Use '%prog -h' for option desc"
 
     parser = optparse.OptionParser(usage=usage, prog='bafs')
 

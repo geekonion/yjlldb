@@ -138,7 +138,7 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
 
 def generate_option_parser():
     usage = "usage: %prog [options] ModuleName\n" + \
-            "Use 'baf -h' for option desc"
+            "Use '%prog -h' for option desc"
 
     parser = optparse.OptionParser(usage=usage, prog='baf')
 

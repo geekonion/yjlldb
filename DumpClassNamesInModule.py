@@ -117,7 +117,7 @@ def exe_script(debugger, command_script):
 
 def generate_option_parser():
     usage = "usage: %prog [ModuleName]\n" + \
-            "Use 'classes -h' for option desc"
+            "Use '%prog -h' for option desc"
 
     parser = optparse.OptionParser(usage=usage, prog='classes')
 
