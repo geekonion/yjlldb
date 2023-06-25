@@ -17,6 +17,9 @@ set 728 breakpoints
 (lldb) x 0x1029b3008
 0x1029b3008: c0 03 5f d6 ff 03 03 d1 fd 7b 0b a9 fd c3 02 91  .._......{......
 0x1029b3018: e8 03 01 aa e1 03 02 aa e3 0f 00 f9 a0 83 1f f8  ................
+(lldb) dis -s 0x1029b3008 -c 1
+LLDBCode`-[ViewController viewDidLoad]:
+    0x1029b3008 <+240>: ret
 ```
 
 
