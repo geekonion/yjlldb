@@ -4,6 +4,23 @@ Some very useful lldb commands for iOS debugging.
 
 
 
+#### bab - break at bytes
+
+set breakpoints at the specified bytes in user modules
+
+```stylus
+(lldb) bab c0 03 5f d6
+Breakpoint 1: where = LLDBCode`-[ViewController viewDidLoad] + 240 at ViewController.m:29:1, address = 0x1029b3008
+...
+set 728 breakpoints
+
+(lldb) x 0x1029b3008
+0x1029b3008: c0 03 5f d6 ff 03 03 d1 fd 7b 0b a9 fd c3 02 91  .._......{......
+0x1029b3018: e8 03 01 aa e1 03 02 aa e3 0f 00 f9 a0 83 1f f8  ................
+```
+
+
+
 #### baf - break all functions in module
 
 break all functions and methods in the specified module
