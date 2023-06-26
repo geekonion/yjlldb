@@ -13,7 +13,7 @@ def __lldb_init_module(debugger, internal_dict):
                            ' -f MachOParser.image_list image_list')
     debugger.HandleCommand(
         'command script add -h "print executable name."'
-        ' -f MachOParser.show_executable_name exe_name')
+        ' -f MachOParser.show_executable_name executable')
 
 
 def show_entitlements(debugger, command, result, internal_dict):
@@ -78,8 +78,8 @@ def show_executable_name(debugger, command, result, internal_dict):
     """
     print executable name
     """
-    ret_str = get_executable_name(debugger)
-    result.AppendMessage(ret_str)
+    target = debugger.GetSelectedTarget()
+    result.AppendMessage(target.GetExecutable().GetFilename())
 
 
 def get_entitlements(debugger, keyword):
@@ -484,18 +484,6 @@ def get_sorted_images(debugger, count):
     result;
     '''
 
-    ret_str = exe_script(debugger, command_script)
-
-    return ret_str
-
-
-def get_executable_name(debugger):
-    command_script = '@import Foundation;'
-    command_script += r'''
-    NSString *exe_name = (NSString *)[[[NSBundle mainBundle] executablePath] lastPathComponent];
-
-    exe_name;
-    '''
     ret_str = exe_script(debugger, command_script)
 
     return ret_str

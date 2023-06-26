@@ -80,6 +80,27 @@ frame #3: 0x104360f78 Interlock`-[ViewController touchesBegan:withEvent:] + at V
 
 
 
+#### commads to get common directory
+
+```stylus
+(lldb) bundle_dir
+/var/containers/Bundle/Application/63954B0E-79FA-42F2-A7EA-3568026008A1/Interlock.app
+(lldb) home_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28
+(lldb) doc_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Documents
+(lldb) caches_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library/Caches
+(lldb) lib_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library
+(lldb) tmp_dir
+/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/tmp
+(lldb) group_dir
+/private/var/mobile/Containers/Shared/AppGroup/9460EA21-AE6A-4220-9BB3-6EC8B971CDAE
+```
+
+
+
 #### ls 
 
 list directory contents, just like `ls -lh` on Mac
@@ -102,27 +123,6 @@ drwxr-xr-x         64B 1970-01-01 00:00:00 +0000 SystemData
 drwxr-xr-x         64B 2023-05-16 04:51:14 +0000 tmp
 (lldb) ls /var/mobile/Containers/Data/Application/09E63130-623F-4124-BCBB-59E20BD28964/Documents
 -rw-r--r--         18B 2023-05-16 05:36:05 +0000 report.txt
-```
-
-
-
-#### commads to get common directory
-
-```stylus
-(lldb) bundle_dir
-/var/containers/Bundle/Application/63954B0E-79FA-42F2-A7EA-3568026008A1/Interlock.app
-(lldb) home_dir
-/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28
-(lldb) doc_dir
-/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Documents
-(lldb) caches_dir
-/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library/Caches
-(lldb) lib_dir
-/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/Library
-(lldb) tmp_dir
-/var/mobile/Containers/Data/Application/1161FDFD-5D69-47CD-B5C6-C2724B8E2F28/tmp
-(lldb) group_dir
-/private/var/mobile/Containers/Shared/AppGroup/9460EA21-AE6A-4220-9BB3-6EC8B971CDAE
 ```
 
 
@@ -283,12 +283,12 @@ ViewController <0x10468e260>
 
 
 
-#### exe_name
+#### executable
 
 print main executable name
 
 ```stylus
-(lldb) exe_name
+(lldb) executable
 LLDBCode
 ```
 
