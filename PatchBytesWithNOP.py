@@ -8,13 +8,13 @@ import os
 
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
-        'command script add -h "set breakpoints at the specified bytes in user modules" -f '
+        'command script add -h "patch the specified bytes in user modules" -f '
         'PatchBytesWithNOP.patch_bytes_with_nop patch')
 
 
 def patch_bytes_with_nop(debugger, command, result, internal_dict):
     """
-    set breakpoints at the specified bytes in user modules
+    patch the specified bytes in user modules
     """
     # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
     command_args = shlex.split(command, posix=False)
@@ -51,6 +51,7 @@ def patch_bytes_with_nop(debugger, command, result, internal_dict):
     target = debugger.GetSelectedTarget()
     process = target.GetProcess()
     bundle_path = target.GetExecutable().GetDirectory()
+    total_count = 0
     for module in target.module_iter():
         module_file_spec = module.GetFileSpec()
 
@@ -63,7 +64,7 @@ def patch_bytes_with_nop(debugger, command, result, internal_dict):
             continue
 
         hits_count = 0
-        result.AppendMessage("-----try set breakpoint at %s-----" % name)
+        result.AppendMessage("-----try patch bytes in %s-----" % name)
         for seg in module.section_iter():
             seg_name = seg.GetName()
             if seg_name != "__TEXT":
@@ -98,7 +99,7 @@ def patch_bytes_with_nop(debugger, command, result, internal_dict):
                         break
 
                     hits_count += 1
-                    
+                    total_count += 1
                     bytes_addr = pos + start_addr
                     for idx in range(loop_count):
                         to_patch = bytes_addr + idx * 4
@@ -113,7 +114,7 @@ def patch_bytes_with_nop(debugger, command, result, internal_dict):
         if hits_count == 0:
             result.AppendMessage("input bytes not found")
 
-    result.AppendMessage("patch {} locations".format(hits_count))
+    result.AppendMessage("patch {} locations".format(total_count))
 
 
 def generate_option_parser():

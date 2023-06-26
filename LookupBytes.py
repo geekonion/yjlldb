@@ -44,6 +44,7 @@ def lookup_bytes(debugger, command, result, internal_dict):
 
     target = debugger.GetSelectedTarget()
     bundle_path = target.GetExecutable().GetDirectory()
+    total_count = 0
     for module in target.module_iter():
         module_file_spec = module.GetFileSpec()
 
@@ -91,7 +92,7 @@ def lookup_bytes(debugger, command, result, internal_dict):
                         break
 
                     hits_count += 1
-                    
+                    total_count += 1
                     bytes_addr = pos + start_addr
                     print('0x{:x}'.format(bytes_addr))
 
@@ -100,6 +101,7 @@ def lookup_bytes(debugger, command, result, internal_dict):
         if hits_count == 0:
             result.AppendMessage("input bytes not found")
 
+    result.AppendMessage("{} locations found".format(total_count))
 
 def generate_option_parser():
     usage = "usage: %prog bytes\n" + \

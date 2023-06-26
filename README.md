@@ -292,3 +292,30 @@ print main executable name
 LLDBCode
 ```
 
+
+
+#### blookup
+
+lookup the specified bytes in user modules
+
+```stylus
+(lldb) blookup c0 03 5f d6
+-----try lookup bytes in LLDBCode-----
+0x104961018
+...
+0x104969ab8
+32 locations found
+```
+
+
+
+#### patch
+
+patch the specified bytes in user modules
+
+```stylus
+(lldb) patch c0 03 5f d6
+-----try patch bytes in LLDBCode-----
+patch 32 locations
+```
+
