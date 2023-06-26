@@ -94,7 +94,8 @@ def lookup_bytes(debugger, command, result, internal_dict):
                     hits_count += 1
                     total_count += 1
                     bytes_addr = pos + start_addr
-                    print('0x{:x}'.format(bytes_addr))
+                    inst_addr = target.ResolveLoadAddress(bytes_addr)
+                    print('address = 0x{:x} where = {}'.format(bytes_addr, inst_addr))
 
                     pos += bytes_len
 
