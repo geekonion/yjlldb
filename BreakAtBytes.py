@@ -84,6 +84,10 @@ def break_at_bytes(debugger, command, result, internal_dict):
                     print("{} {:x}-{:x}".format(sec_name, start_addr, sec_size))
 
                 sec_data = sec.GetSectionData().ReadRawData(error, 0, sec_size)
+                if not error.Success():
+                    print('read section {} data failed!'.format(sec_name))
+                    continue
+
                 pos = 0
                 while True:
                     pos = sec_data.find(input_bytes, pos)

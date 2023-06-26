@@ -80,6 +80,10 @@ def lookup_bytes(debugger, command, result, internal_dict):
                 sec_size = sec.GetByteSize()
 
                 sec_data = sec.GetSectionData().ReadRawData(error, 0, sec_size)
+                if not error.Success():
+                    print('read section {} data failed!'.format(sec_name))
+                    continue
+
                 pos = 0
                 while True:
                     pos = sec_data.find(input_bytes, pos)
