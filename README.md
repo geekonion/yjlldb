@@ -283,6 +283,23 @@ ViewController <0x10468e260>
 
 
 
+#### image_list
+
+List current executable and dependent shared library images, sorted by load address.
+
+```stylus
+(lldb) image_list
+index   load addr(slide)       vmsize path
+--------------------------------------------------------
+[  0] 0x1022e4000(0x0022e4000)  81.9K /var/containers/Bundle/Application/C134E909-CC52-4A93-9557-37BA808854D3/LLDBCode.app/LLDBCode
+[  1] 0x1022f8000(0x1022f8000) 524.3K /usr/lib/system/introspection/libdispatch.dylib
+[  2] 0x1023d0000(0x1023d0000) 163.8K /usr/lib/libsubstitute.dylib
+[  3] 0x1023f8000(0x1023f8000)  81.9K /usr/lib/libsubstrate.dylib
+...
+```
+
+
+
 #### executable
 
 print main executable name
@@ -290,6 +307,38 @@ print main executable name
 ```stylus
 (lldb) executable
 LLDBCode
+```
+
+
+
+#### slookup
+
+lookup string between start addr and end addr
+
+```stylus
+(lldb) image_list -c 10
+index   load addr(slide)       vmsize path
+--------------------------------------------------------
+[  0] 0x1022e4000(0x0022e4000)  81.9K /var/containers/Bundle/Application/C134E909-CC52-4A93-9557-37BA808854D3/LLDBCode.app/LLDBCode
+[  1] 0x1022f8000(0x1022f8000) 524.3K /usr/lib/system/introspection/libdispatch.dylib
+[  2] 0x1023d0000(0x1023d0000) 163.8K /usr/lib/libsubstitute.dylib
+[  3] 0x1023f8000(0x1023f8000)  81.9K /usr/lib/libsubstrate.dylib
+[  4] 0x10270c000(0x10270c000)   4.5M /usr/lib/substitute-inserter.dylib
+[  5] 0x102b54000(0x102b54000)   3.5M /usr/lib/substitute-loader.dylib
+[  6] 0x18406f000(0x004044000)   8.7K /usr/lib/libSystem.B.dylib
+[  7] 0x184071000(0x004044000) 394.1K /usr/lib/libc++.1.dylib
+[  8] 0x1840ca000(0x004044000) 144.7K /usr/lib/libc++abi.dylib
+[  9] 0x1840ec000(0x004044000)   8.7M /usr/lib/libobjc.A.dylib
+  
+(lldb) slookup PROGRAM 0x18406f000 0x184071000
+found at 0x184070f7c where = [0x000000018002cf78-0x000000018002cfb8) libSystem.B.dylib.__TEXT.__const
+1 locations found
+
+(lldb) x 0x184070f7c -c 64
+0x184070f7c: 50 52 4f 47 52 41 4d 3a 53 79 73 74 65 6d 2e 42  PROGRAM:System.B
+0x184070f8c: 20 20 50 52 4f 4a 45 43 54 3a 4c 69 62 73 79 73    PROJECT:Libsys
+0x184070f9c: 74 65 6d 2d 31 32 35 32 2e 35 30 2e 34 0a 00 00  tem-1252.50.4...
+0x184070fac: 00 00 00 00 00 00 00 00 00 92 93 40 01 00 00 00  ...........@....
 ```
 
 
