@@ -39,10 +39,11 @@ def dump_classes_in_module(debugger, command, result, internal_dict):
 
     lookup_module_name = lookup_module_name.replace("'", "")
     class_names_str = get_module_regions(debugger, lookup_module_name)
-    class_names = class_names_str.split('\n')
-    class_names = sorted(class_names)
+    if class_names_str:
+        class_names = class_names_str.split('\n')
+        class_names = sorted(class_names)
 
-    result.AppendMessage("{}".format('\n'.join(class_names)))
+        result.AppendMessage("{}".format('\n'.join(class_names)))
 
 
 def get_module_regions(debugger, module):
@@ -100,7 +101,8 @@ def exe_script(debugger, command_script):
     interpreter.HandleCommand('exp -l objc -O -- ' + command_script, res)
 
     if not res.HasResult():
-        return res.GetError()
+        print('execute JIT code failed:\n{}'.format(res.GetError()))
+        return ''
 
     response = res.GetOutput()
 

@@ -50,28 +50,35 @@ def execute_ls(debugger, command, result, internal_dict):
         arg = args[0].lower()
         if arg in "bundle":
             dir_path = get_bundle_directory(debugger)
+            dir_type = "bundle"
         elif arg in "home":
             dir_path = get_home_directory(debugger)
+            dir_type = "home"
         elif arg in "doc":
             dir_path = get_doc_directory(debugger)
+            dir_type = "doc"
         elif arg in "lib":
             dir_path = get_library_directory(debugger)
+            dir_type = "lib"
         elif arg in "tmp":
             dir_path = get_tmp_directory(debugger)
+            dir_type = "tmp"
         elif arg in "caches":
             dir_path = get_caches_directory(debugger)
+            dir_type = "caches"
         elif arg in "group":
             dir_path = get_group_path(debugger)
+            dir_type = "group"
         else:
             # arg是经过小写处理的，不能直接使用
             dir_path = command
             show_dir = False
 
         if 'nil' == dir_path:
-            result.AppendMessage(f'{arg} dir not found')
+            result.AppendMessage(f'{dir_type} dir path is nil')
             return
 
-        if 'error: ' in dir_path:
+        if not dir_path:
             result.AppendMessage(dir_path)
             return
 
@@ -453,7 +460,8 @@ def exe_script(debugger, command_script):
     interpreter.HandleCommand('exp -l objc -O -- ' + command_script, res)
 
     if not res.HasResult():
-        return res.GetError()
+        print('execute JIT code failed:\n{}'.format(res.GetError()))
+        return ''
 
     response = res.GetOutput()
 

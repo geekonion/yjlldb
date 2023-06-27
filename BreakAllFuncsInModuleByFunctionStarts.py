@@ -61,6 +61,8 @@ def break_all_functions_in_module(debugger, command, result, internal_dict):
         print("-----break functions in %s-----" % name)
         func_names = set()
         addr_str = get_function_starts(debugger, lookup_module_name)
+        if not addr_str:
+            continue
         if "returned empty description" in addr_str:
             break
         addresses = addr_str.split(';')
@@ -272,7 +274,8 @@ def exe_script(debugger, command_script):
     interpreter.HandleCommand('exp -l objc -O -- ' + command_script, res)
 
     if not res.HasResult():
-        return res.GetError()
+        print('execute JIT code failed:\n{}'.format(res.GetError()))
+        return ''
 
     response = res.GetOutput()
 

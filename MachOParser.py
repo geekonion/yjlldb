@@ -495,7 +495,8 @@ def exe_script(debugger, command_script):
     interpreter.HandleCommand('exp -l objc -O -- ' + command_script, res)
 
     if not res.HasResult():
-        return res.GetError()
+        print('execute JIT code failed:\n{}'.format(res.GetError()))
+        return ''
 
     response = res.GetOutput()
 
