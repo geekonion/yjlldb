@@ -9,8 +9,8 @@ from enum import Enum
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand('command script add -h "print codesign entitlements of the specified module if any."'
                            ' -f MachOParser.show_entitlements entitlements')
-    debugger.HandleCommand('command script add -h "List current executable and dependent shared library images, sorted by load address."'
-                           ' -f MachOParser.image_list image_list')
+    # debugger.HandleCommand('command script add -h "List current executable and dependent shared library images, sorted by load address."'
+    #                        ' -f MachOParser.image_list image_list')
     debugger.HandleCommand(
         'command script add -h "print executable name."'
         ' -f MachOParser.show_executable_name executable')
@@ -45,33 +45,33 @@ def show_entitlements(debugger, command, result, internal_dict):
     result.AppendMessage(ret_str)
 
 
-def image_list(debugger, command, result, internal_dict):
-    """
-    List current executable and dependent shared library images, sorted by load address.
-    """
-
-    # 去掉转义符
-    command = command.replace('\\', '\\\\')
-    # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
-    command_args = shlex.split(command, posix=False)
-    # 创建parser
-    parser = generate_image_list_option_parser()
-    # 解析参数，捕获异常
-    try:
-        # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
-        (options, args) = parser.parse_args(command_args)
-    except Exception as error:
-        print(error)
-        result.SetError("\n" + parser.get_usage())
-        return
-
-    if options.count:
-        count = options.count
-    else:
-        count = '0'
-
-    ret_str = get_sorted_images(debugger, count)
-    result.AppendMessage(ret_str)
+# def image_list(debugger, command, result, internal_dict):
+#     """
+#     List current executable and dependent shared library images, sorted by load address.
+#     """
+#
+#     # 去掉转义符
+#     command = command.replace('\\', '\\\\')
+#     # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
+#     command_args = shlex.split(command, posix=False)
+#     # 创建parser
+#     parser = generate_image_list_option_parser()
+#     # 解析参数，捕获异常
+#     try:
+#         # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
+#         (options, args) = parser.parse_args(command_args)
+#     except Exception as error:
+#         print(error)
+#         result.SetError("\n" + parser.get_usage())
+#         return
+#
+#     if options.count:
+#         count = options.count
+#     else:
+#         count = '0'
+#
+#     ret_str = get_sorted_images(debugger, count)
+#     result.AppendMessage(ret_str)
 
 
 def show_executable_name(debugger, command, result, internal_dict):
@@ -339,154 +339,154 @@ def get_entitlements(debugger, keyword):
     return ret_str
 
 
-def get_sorted_images(debugger, count):
-    command_script = '@import Foundation;'
-    command_script += r'''
-    struct mach_header_64 {
-        uint32_t    magic;        /* mach magic number identifier */
-        int32_t        cputype;    /* cpu specifier */
-        int32_t        cpusubtype;    /* machine specifier */
-        uint32_t    filetype;    /* type of file */
-        uint32_t    ncmds;        /* number of load commands */
-        uint32_t    sizeofcmds;    /* the size of all the load commands */
-        uint32_t    flags;        /* flags */
-        uint32_t    reserved;    /* reserved */
-    };
-    struct segment_command_64 { /* for 64-bit architectures */
-        uint32_t	cmd;		/* LC_SEGMENT_64 */
-        uint32_t	cmdsize;	/* includes sizeof section_64 structs */
-        char		segname[16];	/* segment name */
-        uint64_t	vmaddr;		/* memory address of this segment */
-        uint64_t	vmsize;		/* memory size of this segment */
-        uint64_t	fileoff;	/* file offset of this segment */
-        uint64_t	filesize;	/* amount to map from the file */
-        int32_t		maxprot;	/* maximum VM protection */
-        int32_t		initprot;	/* initial VM protection */
-        uint32_t	nsects;		/* number of sections in segment */
-        uint32_t	flags;		/* flags */
-    };
-    #ifdef __LP64__
-    typedef struct mach_header_64 mach_header_t;
-    #else
-    typedef struct mach_header mach_header_t;
-    #endif
-    struct load_command {
-        uint32_t cmd;		/* type of load command */
-        uint32_t cmdsize;	/* total size of command in bytes */
-    };
-    typedef struct ImageInfo {
-        const mach_header_t *loadAddress;
-        const char *filePath;
-        intptr_t slide;
-        uint64_t vm_size;
-        uint64_t linkedit_size;
-    } ImageInfo;
-    '''
-    command_script += 'uint32_t count = ' + count + ';\n'
-    command_script += r'''
-    NSMutableString *result = [NSMutableString string];
-    
-    uint32_t img_count = (uint32_t)_dyld_image_count();
-    ImageInfo *infos = (ImageInfo *)calloc(img_count, sizeof(ImageInfo));
-    if (!infos) {
-        return;
-    }
-    intptr_t system_lib_slide = 0;
-    for (uint32_t idx = 0; idx < img_count; idx++) {
-        const mach_header_t *x_mach_header = (const mach_header_t *)_dyld_get_image_header(idx);
-        const char *name = (const char *)_dyld_get_image_name(idx);
-        intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
-        if (strcmp(name, "/usr/lib/libSystem.B.dylib") == 0) {
-            system_lib_slide = slide;
-        }
-        
-        uint64_t file_size = 0;
-        uint64_t linkedit_size = 0;
-        if (x_mach_header) {
-            uint32_t magic = x_mach_header->magic;
-            if (magic == 0xfeedfacf) { // MH_MAGIC_64
-                uint32_t ncmds = x_mach_header->ncmds;
-                if (ncmds > 0) {
-                    uint64_t cur = (uint64_t)x_mach_header + sizeof(mach_header_t);
-                    struct load_command *sc = NULL;
-                    for (uint32_t i = 0; i < ncmds; i++, cur += sc->cmdsize) {
-                        sc = (struct load_command *)cur;
-                        if (sc->cmd != 0x19) { // LC_SEGMENT_64
-                            continue;
-                        }
-                        
-                        struct segment_command_64 *seg = (struct segment_command_64 *)sc;
-                        if (strcmp(seg->segname, "__PAGEZERO") == 0) {
-                            continue;
-                        } else if (strcmp(seg->segname, "__LINKEDIT") == 0) {
-                            linkedit_size = seg->vmsize;
-                        }
-                        
-                        file_size += seg->vmsize;
-                    }
-                }
-            }
-        }
-        // 系统库的__LINKEDIT段是共用的，并且占了大部分size，所以系统库的size大多相近
-        infos[idx] = (ImageInfo){x_mach_header, name, slide, file_size, linkedit_size};
-    }
-    
-    // 排序
-    size_t j = 0;
-    for (size_t img_idx = 1; img_idx < img_count; img_idx++) {
-        ImageInfo image_info = infos[img_idx];
-        j = img_idx;
-        while (j > 0 &&
-               infos[j - 1].loadAddress > image_info.loadAddress
-               ) {
-            infos[j] = infos[j - 1];
-            j--;
-        }
-        infos[j] = image_info;
-    }
-    
-    [result appendString:@"index   load addr(slide)       vmsize path\n"];
-    [result appendString:@"--------------------------------------------------------\n"];
-    
-    uint32_t r_count = count > 0 ? count : img_count;
-    for (size_t image_idx = 0; image_idx < r_count; image_idx++) {
-        ImageInfo image_info = infos[image_idx];
-        uint64_t file_size = 0;
-        if (system_lib_slide == image_info.slide) {
-            // 注意：系统库__LINKEDIT段是共用的，此处不计入大小
-            file_size = image_info.vm_size - image_info.linkedit_size;
-        } else {
-            file_size = image_info.vm_size;
-        }
-        NSString *size_str = nil;
-        NSInteger KB = 1000;
-        NSInteger MB = KB * KB;
-        NSInteger GB = MB * KB;
-        if (file_size < KB) {
-            size_str = [NSString stringWithFormat:@"%5lluB", file_size];
-        } else if (file_size < MB) {
-            CGFloat size = ((CGFloat)file_size) / KB;
-            size_str = [NSString stringWithFormat:@"%5.1fK", size];
-        } else if (file_size < GB) {
-            CGFloat size = ((CGFloat)file_size) / MB;
-            size_str = [NSString stringWithFormat:@"%5.1fM", size];
-        } else {
-            CGFloat size = ((CGFloat)file_size) / GB;
-            size_str = [NSString stringWithFormat:@"%5.1fG", size];
-        }
-        
-        // 兼容中文需要将路径转为NSString
-        [result appendFormat:@"[%3zu] %p(0x%09lx) %@ %@\n", image_idx, image_info.loadAddress, image_info.slide, size_str, [NSString stringWithUTF8String:image_info.filePath]]    
-    }
-    
-    free(infos);
-    
-    result;
-    '''
-
-    ret_str = exe_script(debugger, command_script)
-
-    return ret_str
+# def get_sorted_images(debugger, count):
+#     command_script = '@import Foundation;'
+#     command_script += r'''
+#     struct mach_header_64 {
+#         uint32_t    magic;        /* mach magic number identifier */
+#         int32_t        cputype;    /* cpu specifier */
+#         int32_t        cpusubtype;    /* machine specifier */
+#         uint32_t    filetype;    /* type of file */
+#         uint32_t    ncmds;        /* number of load commands */
+#         uint32_t    sizeofcmds;    /* the size of all the load commands */
+#         uint32_t    flags;        /* flags */
+#         uint32_t    reserved;    /* reserved */
+#     };
+#     struct segment_command_64 { /* for 64-bit architectures */
+#         uint32_t	cmd;		/* LC_SEGMENT_64 */
+#         uint32_t	cmdsize;	/* includes sizeof section_64 structs */
+#         char		segname[16];	/* segment name */
+#         uint64_t	vmaddr;		/* memory address of this segment */
+#         uint64_t	vmsize;		/* memory size of this segment */
+#         uint64_t	fileoff;	/* file offset of this segment */
+#         uint64_t	filesize;	/* amount to map from the file */
+#         int32_t		maxprot;	/* maximum VM protection */
+#         int32_t		initprot;	/* initial VM protection */
+#         uint32_t	nsects;		/* number of sections in segment */
+#         uint32_t	flags;		/* flags */
+#     };
+#     #ifdef __LP64__
+#     typedef struct mach_header_64 mach_header_t;
+#     #else
+#     typedef struct mach_header mach_header_t;
+#     #endif
+#     struct load_command {
+#         uint32_t cmd;		/* type of load command */
+#         uint32_t cmdsize;	/* total size of command in bytes */
+#     };
+#     typedef struct ImageInfo {
+#         const mach_header_t *loadAddress;
+#         const char *filePath;
+#         intptr_t slide;
+#         uint64_t vm_size;
+#         uint64_t linkedit_size;
+#     } ImageInfo;
+#     '''
+#     command_script += 'uint32_t count = ' + count + ';\n'
+#     command_script += r'''
+#     NSMutableString *result = [NSMutableString string];
+#
+#     uint32_t img_count = (uint32_t)_dyld_image_count();
+#     ImageInfo *infos = (ImageInfo *)calloc(img_count, sizeof(ImageInfo));
+#     if (!infos) {
+#         return;
+#     }
+#     intptr_t system_lib_slide = 0;
+#     for (uint32_t idx = 0; idx < img_count; idx++) {
+#         const mach_header_t *x_mach_header = (const mach_header_t *)_dyld_get_image_header(idx);
+#         const char *name = (const char *)_dyld_get_image_name(idx);
+#         intptr_t slide = (intptr_t)_dyld_get_image_vmaddr_slide(idx);
+#         if (strcmp(name, "/usr/lib/libSystem.B.dylib") == 0) {
+#             system_lib_slide = slide;
+#         }
+#
+#         uint64_t file_size = 0;
+#         uint64_t linkedit_size = 0;
+#         if (x_mach_header) {
+#             uint32_t magic = x_mach_header->magic;
+#             if (magic == 0xfeedfacf) { // MH_MAGIC_64
+#                 uint32_t ncmds = x_mach_header->ncmds;
+#                 if (ncmds > 0) {
+#                     uint64_t cur = (uint64_t)x_mach_header + sizeof(mach_header_t);
+#                     struct load_command *sc = NULL;
+#                     for (uint32_t i = 0; i < ncmds; i++, cur += sc->cmdsize) {
+#                         sc = (struct load_command *)cur;
+#                         if (sc->cmd != 0x19) { // LC_SEGMENT_64
+#                             continue;
+#                         }
+#
+#                         struct segment_command_64 *seg = (struct segment_command_64 *)sc;
+#                         if (strcmp(seg->segname, "__PAGEZERO") == 0) {
+#                             continue;
+#                         } else if (strcmp(seg->segname, "__LINKEDIT") == 0) {
+#                             linkedit_size = seg->vmsize;
+#                         }
+#
+#                         file_size += seg->vmsize;
+#                     }
+#                 }
+#             }
+#         }
+#         // 系统库的__LINKEDIT段是共用的，并且占了大部分size，所以系统库的size大多相近
+#         infos[idx] = (ImageInfo){x_mach_header, name, slide, file_size, linkedit_size};
+#     }
+#
+#     // 排序
+#     size_t j = 0;
+#     for (size_t img_idx = 1; img_idx < img_count; img_idx++) {
+#         ImageInfo image_info = infos[img_idx];
+#         j = img_idx;
+#         while (j > 0 &&
+#                infos[j - 1].loadAddress > image_info.loadAddress
+#                ) {
+#             infos[j] = infos[j - 1];
+#             j--;
+#         }
+#         infos[j] = image_info;
+#     }
+#
+#     [result appendString:@"index   load addr(slide)       vmsize path\n"];
+#     [result appendString:@"--------------------------------------------------------\n"];
+#
+#     uint32_t r_count = count > 0 ? count : img_count;
+#     for (size_t image_idx = 0; image_idx < r_count; image_idx++) {
+#         ImageInfo image_info = infos[image_idx];
+#         uint64_t file_size = 0;
+#         if (system_lib_slide == image_info.slide) {
+#             // 注意：系统库__LINKEDIT段是共用的，此处不计入大小
+#             file_size = image_info.vm_size - image_info.linkedit_size;
+#         } else {
+#             file_size = image_info.vm_size;
+#         }
+#         NSString *size_str = nil;
+#         NSInteger KB = 1000;
+#         NSInteger MB = KB * KB;
+#         NSInteger GB = MB * KB;
+#         if (file_size < KB) {
+#             size_str = [NSString stringWithFormat:@"%5lluB", file_size];
+#         } else if (file_size < MB) {
+#             CGFloat size = ((CGFloat)file_size) / KB;
+#             size_str = [NSString stringWithFormat:@"%5.1fK", size];
+#         } else if (file_size < GB) {
+#             CGFloat size = ((CGFloat)file_size) / MB;
+#             size_str = [NSString stringWithFormat:@"%5.1fM", size];
+#         } else {
+#             CGFloat size = ((CGFloat)file_size) / GB;
+#             size_str = [NSString stringWithFormat:@"%5.1fG", size];
+#         }
+#
+#         // 兼容中文需要将路径转为NSString
+#         [result appendFormat:@"[%3zu] %p(0x%09lx) %@ %@\n", image_idx, image_info.loadAddress, image_info.slide, size_str, [NSString stringWithUTF8String:image_info.filePath]]
+#     }
+#
+#     free(infos);
+#
+#     result;
+#     '''
+#
+#     ret_str = exe_script(debugger, command_script)
+#
+#     return ret_str
 
 
 def exe_script(debugger, command_script):
