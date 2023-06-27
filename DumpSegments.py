@@ -184,9 +184,13 @@ def get_module_segments(debugger, module):
                         size_t sec_size = sizeof(struct section_64);
                         for (uint32_t idx = 0; idx < nsects; idx++) {
                             struct section_64 *sec = (struct section_64 *)sec_start;
-                            [result appendFormat:@"\t[0x%llx-0x%llx) 0x%llx %s\n", sec->addr + slide, sec->addr + slide + sec->size, sec->size, sec->sectname];
+                            char *sec_name = strndup(sec->sectname, 16);
+                            [result appendFormat:@"\t[0x%llx-0x%llx) 0x%llx %s\n", sec->addr + slide, sec->addr + slide + sec->size, sec->size, sec_name];
                             
                             sec_start += sec_size;
+                            if (sec_name) {
+                                free(sec_name);
+                            }
                         }
                         if (strcmp(seg->segname, "__LINKEDIT") == 0) { //SEG_LINKEDIT
                             file_offset = seg->fileoff;
@@ -221,7 +225,8 @@ def exe_script(debugger, command_script):
     interpreter.HandleCommand('exp -l objc -O -- ' + command_script, res)
 
     if not res.HasResult():
-        return res.GetError()
+        print(res.GetError())
+        return ''
 
     response = res.GetOutput()
 
