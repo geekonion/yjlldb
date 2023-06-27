@@ -13,21 +13,41 @@ class Module:
     size = 0
     linkedit_size = 0
 
+
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
-        'command script add -h "set breakpoints at the specified bytes in user modules" -f '
+        'command script add -h "List current executable and dependent shared library images, sorted by load address." -f '
         'ImageList.image_list image_list')
 
 
 def image_list(debugger, command, result, internal_dict):
     """
-    set breakpoints at the specified bytes in user modules
+    List current executable and dependent shared library images, sorted by load address.
     """
+
+    # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
+    command_args = shlex.split(command, posix=False)
+    # 创建parser
+    parser = generate_option_parser()
+    # 解析参数，捕获异常
+    try:
+        # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
+        (options, args) = parser.parse_args(command_args)
+    except Exception as error:
+        print(error)
+        result.SetError("\n" + parser.get_usage())
+        return
+
+    if options.count:
+        input_count = int(options.count)
+    else:
+        input_count = 0
 
     target = debugger.GetSelectedTarget()
     modules = []
     symbol_comp = ')/Symbols/'
     symbol_comp_len = len(symbol_comp)
+
     for module in target.module_iter():
         slide = 0
         header_addr = 0
@@ -78,3 +98,17 @@ def image_list(debugger, command, result, internal_dict):
             size_str = '{:5.1f}G'.format(mod_size / GB)
 
         print("[{:>3}] 0x{:x}(0x{:09x}) {} {}".format(idx, module.load_address, module.slide, size_str, module.path))
+
+        if input_count > 0 and idx == input_count - 1:
+            break
+
+
+def generate_option_parser():
+    usage = "usage: %prog [-c count]\n"
+
+    parser = optparse.OptionParser(usage=usage, prog='image_list')
+    parser.add_option("-c", "--count",
+                      dest="count",
+                      help="image count")
+
+    return parser
