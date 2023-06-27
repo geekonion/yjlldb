@@ -12,6 +12,10 @@ def __lldb_init_module(debugger, internal_dict):
         'command script add -h "dump the specified module" -f '
         'DumpModule.dump_module dump_module')
 
+    debugger.HandleCommand(
+        'command script add -h "dump the specified module before load method called" -f '
+        'DumpModule.dump_module_before_load_called dump_module_blc')
+
 
 def dump_module(debugger, command, result, internal_dict):
     """
@@ -46,7 +50,103 @@ def dump_module(debugger, command, result, internal_dict):
     try_mkdir(output_dir)
 
     module_info_str = get_module_regions(debugger, lookup_module_name)
-    module_info = json.loads(module_info_str)
+    if module_info_str:
+        module_info = json.loads(module_info_str)
+        print('dumping {}, this may take a while'.format(lookup_module_name))
+        dump_message = dump_module_with_info(debugger, module_info, output_dir)
+
+        result.AppendMessage("{}".format(dump_message))
+
+
+def dump_module_before_load_called(debugger, command, result, internal_dict):
+    """
+    dump the specified module before load method called
+    """
+    # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
+    command_args = shlex.split(command, posix=False)
+    # 创建parser
+    parser = generate_option_parser()
+    # 解析参数，捕获异常
+    try:
+        # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
+        (options, args) = parser.parse_args(command_args)
+    except Exception as error:
+        print(error)
+        result.SetError("\n" + parser.get_usage())
+        return
+
+    if args:
+        lookup_module_name = ''.join(args)
+    else:
+        lookup_module_name = None
+
+    if not lookup_module_name:
+        result.AppendMessage(parser.get_usage())
+        return
+
+    lookup_module_name = lookup_module_name.replace("'", "").lower()
+    output_dir = os.path.expanduser('~') + '/lldb_dump_macho'
+    try_mkdir(output_dir)
+
+    target = debugger.GetSelectedTarget()
+    for module in target.module_iter():
+        module_name = module.GetFileSpec().GetFilename()
+        if lookup_module_name == module_name.lower():
+            target_module = module
+            break
+
+    module_info = {'module_name': module_name}
+    module_size = 0
+    regions = []
+    text_addr = 0
+    for seg in target_module.section_iter():
+        seg_name = seg.GetName()
+        if seg_name == '__PAGEZERO':
+            continue
+        elif seg_name == '__TEXT':
+            header_addr = seg.GetLoadAddress(target)
+            slide = header_addr - seg.GetFileAddress()
+            is_text_seg = True
+        else:
+            is_text_seg = False
+
+        module_size += seg.GetFileByteSize()
+
+        sections = []
+        nsec = seg.GetNumSubSections()
+        for i in range(nsec):
+            sec = seg.GetSubSectionAtIndex(i)
+            sec_name = sec.GetName()
+            # 对于系统库来说，获取到的sec.GetFileOffset()经过修正，而header中的file offset没有修正
+            sections.append('0x{:x}-0x{:x}-0x{:x}-{}.{}'.format(sec.GetLoadAddress(target) - slide,
+                                                                sec.GetFileByteSize(),
+                                                                sec.GetFileOffset(),
+                                                                seg_name,
+                                                                sec_name))
+
+            if is_text_seg and text_addr == 0:
+                text_addr = sec.GetLoadAddress(target)
+
+        seg_info = {
+            # 对于系统库来说，获取到的sec.GetFileOffset()经过修正，而header中的file offset没有修正
+            'segment': '0x{:x}-0x{:x}-0x{:x}-{}'.format(seg.GetLoadAddress(target) - slide,
+                                                        seg.GetFileByteSize(),
+                                                        seg.GetFileOffset(),
+                                                        seg_name),
+            'sections': sections,
+            'size': seg.GetFileOffset() + seg.GetFileByteSize()
+        }
+        regions.append(seg_info)
+
+    header_info = {
+        'segment': '0x{:x}-0x{:x}-0x0-header'.format(header_addr - slide, text_addr - header_addr)
+    }
+    regions.insert(0, header_info)
+
+    module_info['size'] = module_size
+    module_info['slide'] = slide
+    module_info['regions'] = regions
+
     print('dumping {}, this may take a while'.format(lookup_module_name))
     dump_message = dump_module_with_info(debugger, module_info, output_dir)
 
@@ -268,9 +368,13 @@ def get_module_regions(debugger, module):
                     size_t sec_size = sizeof(struct section_64);
                     for (uint32_t idx = 0; idx < nsects; idx++) {
                         struct section_64 *sec = (struct section_64 *)sec_start;
-                        NSString *sec_info = [NSString stringWithFormat:@"0x%llx-0x%llx-0x%x-%s.%s", sec->addr, sec->size, sec->offset, sec->segname, sec->sectname];
+                        char *sec_name = strndup(sec->sectname, 16);
+                        NSString *sec_info = [NSString stringWithFormat:@"0x%llx-0x%llx-0x%x-%s.%s", sec->addr, sec->size, sec->offset, sec->segname, sec_name];
                         [sections addObject:sec_info];
                         sec_start += sec_size;
+                        if (sec_name) {
+                            free(sec_name);
+                        }
                     }
                     segs[@"sections"] = sections;
                     uint64_t file_size = seg->fileoff + seg->filesize;
@@ -311,7 +415,8 @@ def exe_script(debugger, command_script):
     interpreter.HandleCommand('exp -l objc -O -- ' + command_script, res)
 
     if not res.HasResult():
-        return res.GetError()
+        print(res.GetError())
+        return ''
 
     response = res.GetOutput()
 
