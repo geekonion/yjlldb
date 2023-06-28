@@ -212,12 +212,12 @@ UIKit apparently does not contain code signature
 
 
 
-#### dump_module
+#### dmodule
 
 dump the specified module from memory
 
 ```stylus
-(lldb) dump_module UIKit
+(lldb) dmodule UIKit
 dumping UIKit, this may take a while
 ignore __DATA.__bss
 ignore __DATA.__common

@@ -10,11 +10,11 @@ import os
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
         'command script add -h "dump the specified module" -f '
-        'DumpModule.dump_module dump_module')
+        'DumpModule.dump_module dmodule')
 
     debugger.HandleCommand(
         'command script add -h "dump the specified module before load method called" -f '
-        'DumpModule.dump_module_before_load_called dump_module_blc')
+        'DumpModule.dump_module_before_load_called dmodule_before_load')
 
 
 def dump_module(debugger, command, result, internal_dict):
@@ -26,7 +26,7 @@ def dump_module(debugger, command, result, internal_dict):
     # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
     command_args = shlex.split(command, posix=False)
     # 创建parser
-    parser = generate_option_parser()
+    parser = generate_option_parser('dmodule')
     # 解析参数，捕获异常
     try:
         # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
@@ -65,7 +65,7 @@ def dump_module_before_load_called(debugger, command, result, internal_dict):
     # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
     command_args = shlex.split(command, posix=False)
     # 创建parser
-    parser = generate_option_parser()
+    parser = generate_option_parser('dmodule_before_load')
     # 解析参数，捕获异常
     try:
         # options是所有的选项，key-value形式，args是其余剩余所有参数，不包含options
@@ -84,14 +84,14 @@ def dump_module_before_load_called(debugger, command, result, internal_dict):
         result.AppendMessage(parser.get_usage())
         return
 
-    lookup_module_name = lookup_module_name.replace("'", "").lower()
+    lookup_module_name = lookup_module_name.replace("'", "")
     output_dir = os.path.expanduser('~') + '/lldb_dump_macho'
     try_mkdir(output_dir)
 
     target = debugger.GetSelectedTarget()
     for module in target.module_iter():
         module_name = module.GetFileSpec().GetFilename()
-        if lookup_module_name == module_name.lower():
+        if lookup_module_name.lower() == module_name.lower():
             target_module = module
             break
 
@@ -178,6 +178,8 @@ def dump_module_with_info(debugger, module_info, output_dir):
     module_dir = '{}/{}'.format(output_dir, module_name)
     try_mkdir(module_dir)
 
+    module_info_write_to_file(module_info, module_dir)
+
     outputs = []
     for idx, region_info in enumerate(module_regions):
         # print('{} {}'.format(idx, region_info))
@@ -219,6 +221,14 @@ def dump_module_with_info(debugger, module_info, output_dir):
 def try_mkdir(dir_path):
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
+
+
+def module_info_write_to_file(module_info, module_dir):
+    module_name = module_info["module_name"].replace(' ', '_')
+    json_file_path = module_dir + '/' + module_name + '.json'
+    json_fp = open(json_file_path, 'w')
+    json.dump(module_info, json_fp, indent=4)
+    json_fp.close()
 
 
 def get_module_regions(debugger, module):
@@ -431,10 +441,10 @@ def exe_script(debugger, command_script):
     return response
 
 
-def generate_option_parser():
+def generate_option_parser(prog):
     usage = "usage: %prog ModuleName\n" + \
             "Use '%prog -h' for option desc"
 
-    parser = optparse.OptionParser(usage=usage, prog='dump_module')
+    parser = optparse.OptionParser(usage=usage, prog=prog)
 
     return parser
