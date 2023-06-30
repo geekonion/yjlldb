@@ -9,17 +9,17 @@ import os
 
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand(
-        'command script add -h "dump the specified module" -f '
+        'command script add -h "dump the specified module, see also dmodule_before_load" -f '
         'DumpModule.dump_module dmodule')
 
     debugger.HandleCommand(
-        'command script add -h "dump the specified module before load method called" -f '
+        'command script add -h "dump the specified module before load method called, see also dmodule" -f '
         'DumpModule.dump_module_before_load_called dmodule_before_load')
 
 
 def dump_module(debugger, command, result, internal_dict):
     """
-    dump the specified module
+    dump the specified module, see also dmodule_before_load
     """
     # 去掉转义符
     command = command.replace('\\', '\\\\')
@@ -60,7 +60,7 @@ def dump_module(debugger, command, result, internal_dict):
 
 def dump_module_before_load_called(debugger, command, result, internal_dict):
     """
-    dump the specified module before load method called
+    dump the specified module before load method called, see also dmodule
     """
     # posix=False特殊符号处理相关，确保能够正确解析参数，因为OC方法前有-
     command_args = shlex.split(command, posix=False)
