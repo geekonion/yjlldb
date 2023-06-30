@@ -368,3 +368,46 @@ patch the specified bytes in user modules
 patch 32 locations
 ```
 
+
+
+#### mtrace
+
+```stylus
+// begin trace
+(lldb) mtrace LLDBCode
+-----trace functions in LLDBCode-----
+will trace 35 names
+begin trace with Breakpoint 1: 35 locations
+(lldb) c
+
+// trace log
+frame #0: 0x0000000102dd2fb8 LLDBCode`-[ViewController touchesBegan:withEvent:](self=0x00000001d4108040, _cmd="touchesBegan:withEvent:", touches=0x000000015fd0fff0, event=1 element) at ViewController.m:35
+frame #0: 0x0000000102dd3a68 LLDBCode`+[MachoTool findMacho](self=0x00000001c0038c40, _cmd="\xc5\xd1K\xb7\xa1A\U00000001") at MachoTool.m:74
+frame #0: 0x0000000102dd4318 LLDBCode`__22+[MachoTool findMacho]_block_invoke(.block_descriptor=0x000000015fd0fff0, header_addr=7852818496) at MachoTool.m:110
+...
+frame #0: 0x0000000102dd5b20 LLDBCode`+[Image findInstruction:](self=0x00000001c0038c40, _cmd="\xc5\xd1K\xb7\xa1A\U00000001", inst_str="śJ\xb7\xa1\U00000005") at Image.m:281
+frame #0: 0x0000000102dd32f8 LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke_4(.block_descriptor=0x00000001c40a5ac0, downloadProgress=0x000000018f903381) at ViewController.m:57
+frame #0: 0x0000000102dd3268 LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke_3(.block_descriptor=0x00000001c40733c0, task=0x00000001c80394e0, error=0x0000000000000000) at ViewController.m:53
+frame #0: 0x0000000102dd318c LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke(.block_descriptor=0x0000000102ec1500) at ViewController.m:45
+```
+
+
+
+#### bda
+
+disable breakpoint(s) at the specified class
+
+```stylus
+(lldb) bda -i ViewController
+disable breakpoint 1.8: where = LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke_4 at ViewController.m:57, address = 0x00000001040e32f8, unresolved, hit count = 1  Options: disabled 
+disable breakpoint 1.14: where = LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke_2 at ViewController.m:50, address = 0x00000001040e31e0, unresolved, hit count = 0  Options: disabled 
+disable breakpoint 1.18: where = LLDBCode`-[ViewController touchesBegan:withEvent:] at ViewController.m:35, address = 0x00000001040e2fb8, unresolved, hit count = 1  Options: disabled 
+disable breakpoint 1.20: where = LLDBCode`-[ViewController ls_dir:] at ViewController.m:62, address = 0x00000001040e335c, unresolved, hit count = 0  Options: disabled 
+disable breakpoint 1.22: where = LLDBCode`-[ViewController viewDidLoad] at ViewController.m:24, address = 0x00000001040e2ec4, unresolved, hit count = 0  Options: disabled 
+disable breakpoint 1.23: where = LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke_3 at ViewController.m:53, address = 0x00000001040e3268, unresolved, hit count = 1  Options: disabled 
+disable breakpoint 1.27: where = LLDBCode`__41-[ViewController touchesBegan:withEvent:]_block_invoke at ViewController.m:45, address = 0x00000001040e318c, unresolved, hit count = 1  Options: disabled 
+
+(lldb) bda -i ViewController(extension)
+disable breakpoint 1.23: where = LLDBCode`-[ViewController(extension) test] at ViewController.m:20, address = 0x0000000102ec2e7c, unresolved, hit count = 0  Options: disabled 
+```
+
